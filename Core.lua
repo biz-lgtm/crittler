@@ -62,7 +62,7 @@ local DB_DEFAULTS = {
 }
 local CHAR_DEFAULTS = {
 	deaths = 0, lastDeath = 0, levelsNoDeath = 0,
-	ach = {}, zones = {}, soundsPlayed = 0, questsDone = 0,
+	ach = {}, zones = {}, soundsPlayed = 0, questsDone = 0, wishes = {},
 }
 
 local function ApplyDefaults(t, d)
@@ -260,12 +260,37 @@ function ns:MyStatus()
 	return level, xp, GetRealZoneText() or "?", class or "NONE"
 end
 
+local ROLES = { TANK = true, HEALER = true, DAMAGER = true }
+ns.ROLES = ROLES
+
+-- Spezialisierung und Rolle. Die Rolle kann mit /crit rolle von Hand festgelegt werden
+-- (z. B. wenn der Client keine Spezialisierungen kennt).
+function ns:MySpec()
+	local spec, role = "", ""
+	local getSpec = GetSpecialization or (C_SpecializationInfo and C_SpecializationInfo.GetSpecialization)
+	local getInfo = GetSpecializationInfo or (C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfo)
+	if getSpec and getInfo then
+		pcall(function()
+			local index = getSpec()
+			if not index or IsSecret(index) then return end
+			local _, name, _, _, r = getInfo(index)
+			if type(name) == "string" and not IsSecret(name) then spec = name end
+			if type(r) == "string" and ROLES[r] then role = r end
+		end)
+	end
+	if ns.cdb and ROLES[ns.cdb.role or ""] then role = ns.cdb.role end
+	return spec, role
+end
+
 function ns:SendStatus()
 	if not ns.db then return end
 	local level, xp, zone, class = ns:MyStatus()
+	local spec, role = ns:MySpec()
 	local m = ns:Member(ns.me)
 	m.level, m.xp, m.zone, m.class, m.deaths = level, xp, zone, class, ns.cdb.deaths
-	ns:Send("ST", level, xp, zone, class, ns.cdb.deaths, ns.VERSION, UnitGUID and UnitGUID("player") or "")
+	m.spec = spec ~= "" and spec or nil
+	m.role = role ~= "" and role or nil
+	ns:Send("ST", level, xp, zone, class, ns.cdb.deaths, ns.VERSION, UnitGUID and UnitGUID("player") or "", spec, role)
 	ns:RefreshUI()
 end
 
@@ -289,7 +314,7 @@ end
 
 local versionWarned = false
 
-ns:Handle("ST", function(name, isMe, level, xp, zone, class, deaths, version, guid)
+ns:Handle("ST", function(name, isMe, level, xp, zone, class, deaths, version, guid, spec, role)
 	if isMe then return end
 	-- eigenes Echo unter noch unbekanntem vollen Namen: an der Charakter-ID erkennen
 	if guid and guid ~= "" and guid == ns.guid then
@@ -317,6 +342,10 @@ ns:Handle("ST", function(name, isMe, level, xp, zone, class, deaths, version, gu
 	m.zone = zone or m.zone
 	m.class = class or m.class
 	m.deaths = tonumber(deaths) or m.deaths
+	if spec ~= nil then -- ältere Versionen schicken das Feld nicht
+		m.spec = spec ~= "" and spec or nil
+		m.role = ROLES[role or ""] and role or nil
+	end
 	if version and version ~= "" then
 		m.version = version
 		if not versionWarned and VersionNum(version) > VersionNum(ns.VERSION) then
@@ -335,6 +364,7 @@ ns:Handle("HI", function(name, isMe)
 		if ns.SendQuests then ns:SendQuests() end
 		if ns.SendAchievements then ns:SendAchievements() end
 		if ns.SendProfessions then ns:SendProfessions(true) end
+		if ns.SendWishes then ns:SendWishes() end
 	end)
 end)
 
@@ -362,10 +392,12 @@ local function Hello()
 	if ns.SendQuests then ns:SendQuests() end
 	if ns.SendAchievements then ns:SendAchievements() end
 	if ns.SendProfessions then ns:SendProfessions(true) end
+	if ns.SendWishes then ns:SendWishes() end
 end
 
 ns:On("PLAYER_XP_UPDATE", function() ns:QueueStatus(5) end)
 ns:On("ZONE_CHANGED_NEW_AREA", function() ns:QueueStatus(2) end)
+ns:On("PLAYER_SPECIALIZATION_CHANGED", function() ns:QueueStatus(2) end)
 
 ---------------------------------------------------------------------------
 -- Start

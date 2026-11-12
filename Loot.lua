@@ -31,6 +31,7 @@ ns:On("CHAT_MSG_LOOT", function(text, _, _, _, looter)
 	local linkName = text:match("|Hitem:.-|h%[(.-)%]|h")
 	local name, quality = ItemInfo(id)
 	name = name or linkName
+	if name and ns.CheckWishLoot then ns:CheckWishLoot(id, name) end
 	if not name or not quality then return end
 
 	-- Erfolge unabhängig von der Teilen-Schwelle

@@ -82,18 +82,22 @@ ns:Handle("PR", function(name, isMe, list)
 end)
 
 -- Liste für das Fenster: pro Beruf alle Mitglieder, höchste Stufe zuerst
-function ns:ProfessionGroups()
+-- filter (optional): Teil eines Berufs- oder Spielernamens
+function ns:ProfessionGroups(filter)
+	filter = (filter and filter ~= "") and strlower(filter) or nil
 	local groups, order = {}, {}
 	for _, member in pairs(ns.db.members) do
 		for _, p in ipairs(member.profs or {}) do
-			local g = groups[p.n]
-			if not g then
-				g = { name = p.n, list = {} }
-				groups[p.n] = g
-				tinsert(order, g)
+			if not filter or strlower(p.n):find(filter, 1, true) or strlower(member.name):find(filter, 1, true) then
+				local g = groups[p.n]
+				if not g then
+					g = { name = p.n, list = {} }
+					groups[p.n] = g
+					tinsert(order, g)
+				end
+				g.icon = g.icon or p.i
+				tinsert(g.list, { member = member, level = p.l or 0, max = p.m or 0 })
 			end
-			g.icon = g.icon or p.i
-			tinsert(g.list, { member = member, level = p.l or 0, max = p.m or 0 })
 		end
 	end
 	table.sort(order, function(x, y) return x.name < y.name end)
@@ -104,6 +108,25 @@ function ns:ProfessionGroups()
 		end)
 	end
 	return order
+end
+
+-- /crit beruf <text>: wer kann das?
+function ns:PrintProfessions(filter)
+	local groups = ns:ProfessionGroups(filter)
+	if #groups == 0 then
+		ns:Print("Kein Crittler mit passendem Beruf gefunden.")
+		return
+	end
+	ns:Print("Berufe:")
+	for _, g in ipairs(groups) do
+		local parts = {}
+		for _, e in ipairs(g.list) do
+			local color = ns:IsOnline(e.member.name) and "|cff66ff66" or "|cff999999"
+			local level = e.max > 0 and (e.level .. "/" .. e.max) or tostring(e.level)
+			tinsert(parts, color .. e.member.name .. "|r " .. level)
+		end
+		print("  |cffffd100" .. g.name .. ":|r " .. table.concat(parts, ", "))
+	end
 end
 
 local pending = false

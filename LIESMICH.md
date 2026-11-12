@@ -17,7 +17,11 @@ Falls das Addon als „veraltet“ markiert ist: in `Crittler.toc` die Zahl hint
 - **Todeszähler** – Wall of Shame und die letzten 50 Tode (Reiter „Tode“).
 - **Freunde auf der Karte** – gelbe Punkte auf der Weltkarte, auch ohne Gruppe. Nicht in Dungeons.
 - **Gemeinsame Quests** – Hinweis im Chat beim Annehmen, Übersicht im Reiter „Quests“.
-- **Berufe** – wer welchen Beruf auf welcher Stufe hat, nach Beruf gruppiert (Reiter „Berufe“).
+- **Klasse, Spezialisierung, Rolle** – im Reiter „Rennen“ mit Klassen-Icon und Tank/Heiler/DD,
+  oben die Übersicht, welche Rollen gerade online sind.
+- **Berufe** – wer welchen Beruf auf welcher Stufe hat, nach Beruf gruppiert, mit Suchfeld (Reiter „Berufe“).
+- **Wunschliste** – bis zu 10 Gegenstände eintragen (Shift-Klick oder Name). Findet ein anderer
+  Crittler so etwas oder hat es in der Tasche, bekommen beide einen Hinweis (Reiter „Wünsche“).
 - **Soundboard** – Sounds bei allen abspielen (Reiter „Sounds“).
 - **Erfolge** – 19 eigene Gilden-Erfolge (Reiter „Erfolge“).
 - **Loot-Angeber** – seltene und bessere Drops werden als Banner geteilt.
@@ -30,6 +34,9 @@ mit gedrückter Maustaste lässt er sich um die Minimap ziehen.
 - `/crit` – Fenster öffnen/schließen
 - `/crit test` – Test-Banner
 - `/crit play murloc` – Sound abspielen
+- `/crit beruf schmied` – wer hat diesen Beruf, mit Stufe
+- `/crit wunsch <Gegenstand>` – auf die Wunschliste setzen (ohne Angabe: Liste anzeigen)
+- `/crit rolle tank|heal|dd|auto` – eigene Rolle von Hand festlegen
 - `/crit minimap` – Minimap-Button ein-/ausblenden
 - `/crit reset` – gespeicherte Mitglieder und Tode löschen
 

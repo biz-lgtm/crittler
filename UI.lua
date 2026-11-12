@@ -6,7 +6,14 @@ local PAD, HEADER_H, TABS_H, FOOTER_H = 14, 46, 30, 38
 local W = WIDTH - PAD * 2 - 8
 local VIEW_H = HEIGHT - HEADER_H - TABS_H - 10 - FOOTER_H - 6
 local WHITE = "Interface\\Buttons\\WHITE8X8"
-local TABS = { "Rennen", "Tode", "Quests", "Berufe", "Erfolge", "Sounds" }
+local TABS = { "Rennen", "Tode", "Quests", "Berufe", "Wünsche", "Erfolge", "Sounds" }
+local ROLE = {
+	TANK = { label = "Tank", hex = "|cff5a99ff", r = 0.35, g = 0.6, b = 1 },
+	HEALER = { label = "Heiler", hex = "|cff4de666", r = 0.3, g = 0.9, b = 0.4 },
+	DAMAGER = { label = "DD", hex = "|cfff26659", r = 0.95, g = 0.4, b = 0.35 },
+}
+local CLASS_ICONS = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
+local Render -- wird weiter unten definiert
 local RANK = { { 1, 0.82, 0 }, { 0.8, 0.8, 0.85 }, { 0.8, 0.5, 0.25 }, [0] = { 0.5, 0.5, 0.5 } }
 local current = "Rennen"
 
@@ -57,6 +64,17 @@ local function ClassColor(class)
 	local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class or ""]
 	if c then return c.r, c.g, c.b end
 	return 1, 1, 1
+end
+
+local function ClassName(class)
+	return (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[class or ""]) or ""
+end
+
+-- "Krieger · Schutz"
+local function ClassLine(m)
+	local class = ClassName(m.class)
+	if m.spec and class ~= "" then return class .. " · " .. m.spec end
+	return m.spec or class
 end
 
 local function AchCount(m)
@@ -202,6 +220,10 @@ local function MemberTip(self)
 	local online = ns:IsOnline(m.name)
 	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 	GameTooltip:AddLine(m.name, ClassColor(m.class))
+	local classLine = ClassLine(m)
+	if classLine ~= "" then GameTooltip:AddLine(classLine, 0.8, 0.8, 0.8) end
+	local role = ROLE[m.role or ""]
+	if role then GameTooltip:AddDoubleLine("Rolle", role.label, 0.7, 0.7, 0.7, role.r, role.g, role.b) end
 	GameTooltip:AddDoubleLine("Level", format("%d (%d%%)", m.level or 0, m.xp or 0), 0.7, 0.7, 0.7, 1, 1, 1)
 	GameTooltip:AddDoubleLine("Zone", m.zone or "?", 0.7, 0.7, 0.7, 1, 1, 1)
 	GameTooltip:AddDoubleLine("Tode", tostring(m.deaths or 0), 0.7, 0.7, 0.7, 1, 1, 1)
@@ -224,23 +246,30 @@ local function MemberTip(self)
 end
 
 local function RaceRow()
-	local r = BaseRow(36)
+	local r = BaseRow(42)
 	r.me = r:CreateTexture(nil, "ARTWORK")
 	r.me:SetColorTexture(1, 0.82, 0, 1)
-	r.me:SetSize(2, 36)
+	r.me:SetSize(2, 42)
 	r.me:SetPoint("LEFT", r, "LEFT", 0, 0)
 	r.rank = FS(r, "GameFontNormalLarge", 24, "CENTER")
-	r.rank:SetPoint("LEFT", r, "LEFT", 10, 0)
-	r.dot = r:CreateTexture(nil, "ARTWORK")
+	r.rank:SetPoint("LEFT", r, "LEFT", 8, 0)
+	r.icon = r:CreateTexture(nil, "ARTWORK")
+	r.icon:SetSize(26, 26)
+	r.icon:SetPoint("LEFT", r, "LEFT", 38, 0)
+	r.dot = r:CreateTexture(nil, "OVERLAY")
 	r.dot:SetSize(8, 8)
-	r.dot:SetPoint("LEFT", r, "LEFT", 42, 0)
+	r.dot:SetPoint("BOTTOMRIGHT", r.icon, "BOTTOMRIGHT", 3, -3)
 	r.name = FS(r, "GameFontHighlight", 150)
-	r.name:SetPoint("LEFT", r, "LEFT", 58, 0)
-	r.level = FS(r, "GameFontNormalLarge", 36, "RIGHT")
-	r.level:SetPoint("LEFT", r, "LEFT", 210, 0)
-	r.bar = Bar(r, 110, 14, 0.55, 0.3, 0.9)
-	r.bar:SetPoint("LEFT", r, "LEFT", 258, 0)
-	r.zone = FS(r, "GameFontHighlightSmall", W - 258 - 110 - 20, "RIGHT")
+	r.name:SetPoint("TOPLEFT", r, "TOPLEFT", 74, -7)
+	r.sub = FS(r, "GameFontDisableSmall", 150)
+	r.sub:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -3)
+	r.role = FS(r, "GameFontHighlightSmall", 44, "CENTER")
+	r.role:SetPoint("LEFT", r, "LEFT", 226, 0)
+	r.level = FS(r, "GameFontNormalLarge", 30, "RIGHT")
+	r.level:SetPoint("LEFT", r, "LEFT", 272, 0)
+	r.bar = Bar(r, 80, 14, 0.55, 0.3, 0.9)
+	r.bar:SetPoint("LEFT", r, "LEFT", 312, 0)
+	r.zone = FS(r, "GameFontHighlightSmall", W - 312 - 80 - 18, "RIGHT")
 	r.zone:SetPoint("RIGHT", r, "RIGHT", -10, 0)
 	r.tip = MemberTip
 	return r
@@ -296,6 +325,75 @@ local function AchRow()
 	return r
 end
 
+local function WishRow()
+	local r = BaseRow(24)
+	r.left = FS(r, "GameFontHighlight", W - 60)
+	r.left:SetPoint("LEFT", r, "LEFT", 10, 0)
+	r.del = FlatButton(r, 18, 18, "x")
+	r.del:SetPoint("RIGHT", r, "RIGHT", -6, 0)
+	r.del:SetScript("OnClick", function()
+		if r.index then ns:RemoveWish(r.index) end
+	end)
+	return r
+end
+
+-- Eingabefeld oben im Reiter (Suche, Wunschliste)
+local function Input(width, hint, maxLetters)
+	local e = CreateFrame("EditBox", nil, child, "BackdropTemplate")
+	e:SetSize(width, 24)
+	e:SetPoint("TOPLEFT", child, "TOPLEFT", 0, 0)
+	Skin(e, 0.1, 0.1, 0.13, 1)
+	e:SetBackdropBorderColor(0.35, 0.35, 0.35, 1)
+	e:SetAutoFocus(false)
+	e:SetFontObject("ChatFontNormal")
+	e:SetTextInsets(8, 8, 0, 0)
+	e:SetMaxLetters(maxLetters)
+	e.hint = FS(e, "GameFontDisable")
+	e.hint:SetPoint("LEFT", e, "LEFT", 8, 0)
+	e.hint:SetText(hint)
+	e:SetScript("OnEscapePressed", e.ClearFocus)
+	e:Hide()
+	return e
+end
+
+local profFilter = ""
+local searchBox = Input(W, "Beruf oder Name suchen …", 40)
+searchBox:SetScript("OnEnterPressed", searchBox.ClearFocus)
+searchBox:SetScript("OnTextChanged", function(self)
+	local text = strtrim(self:GetText() or "")
+	self.hint:SetShown(text == "")
+	if text ~= profFilter then
+		profFilter = text
+		scrollPos = 0
+		if Render then Render() end
+	end
+end)
+
+local wishBox = Input(W - 118, "Gegenstand: Shift-Klick oder Name, dann Enter", 300)
+local function SubmitWish()
+	if ns:AddWish(wishBox:GetText()) then wishBox:SetText("") end
+	wishBox:ClearFocus()
+end
+wishBox:SetScript("OnEnterPressed", SubmitWish)
+wishBox:SetScript("OnTextChanged", function(self)
+	self.hint:SetShown((self:GetText() or "") == "")
+end)
+local wishAdd = FlatButton(wishBox, 110, 24, "Hinzufügen")
+wishAdd:SetPoint("LEFT", wishBox, "RIGHT", 8, 0)
+wishAdd:SetScript("OnClick", SubmitWish)
+
+-- Shift-Klick auf einen Gegenstand fügt den Link ins Wunsch-Feld ein
+local lastLink, lastLinkTime = nil, 0
+local function InsertLink(link)
+	if type(link) ~= "string" or not wishBox:IsVisible() or not wishBox:HasFocus() then return end
+	local now = GetTime()
+	if link == lastLink and now - lastLinkTime < 0.2 then return end
+	lastLink, lastLinkTime = link, now
+	wishBox:SetText(link)
+end
+if ChatEdit_InsertLink then hooksecurefunc("ChatEdit_InsertLink", InsertLink) end
+if ChatFrameUtil and ChatFrameUtil.InsertLink then hooksecurefunc(ChatFrameUtil, "InsertLink", InsertLink) end
+
 local function SoundButton()
 	local b = FlatButton(child, (W - 16) / 3, 34)
 	b:SetScript("OnClick", function(self)
@@ -326,10 +424,25 @@ end
 local render = {}
 
 render["Rennen"] = function()
+	local list = ns:SortedMembers()
+
+	-- Wer ist gerade online, nach Rolle
+	local count, known = { TANK = 0, HEALER = 0, DAMAGER = 0 }, false
+	for _, m in ipairs(list) do
+		if ROLE[m.role or ""] and ns:IsOnline(m.name) then
+			count[m.role] = count[m.role] + 1
+			known = true
+		end
+	end
 	local y = 0
-	for i, m in ipairs(ns:SortedMembers()) do
+	if known then
+		y = Head(1, 0, format("Online:  %s%d Tank|r   %s%d Heiler|r   %s%d DD|r",
+			ROLE.TANK.hex, count.TANK, ROLE.HEALER.hex, count.HEALER, ROLE.DAMAGER.hex, count.DAMAGER))
+	end
+
+	for i, m in ipairs(list) do
 		local r
-		r, y = Acquire("race", i, RaceRow, y, 38)
+		r, y = Acquire("race", i, RaceRow, y, 44)
 		local online = ns:IsOnline(m.name)
 		local rc = RANK[i] or RANK[0]
 		r.member = m
@@ -342,6 +455,24 @@ render["Rennen"] = function()
 		else
 			r.dot:SetColorTexture(0.4, 0.4, 0.4, 1)
 		end
+		local coords = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[m.class or ""]
+		if coords then
+			r.icon:SetTexture(CLASS_ICONS)
+			r.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+		else
+			r.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+			r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+		end
+		local sub = ClassLine(m)
+		r.sub:SetText(sub)
+		r.name:ClearAllPoints()
+		if sub ~= "" then
+			r.name:SetPoint("TOPLEFT", r, "TOPLEFT", 74, -7)
+		else
+			r.name:SetPoint("LEFT", r, "LEFT", 74, 0)
+		end
+		local role = ROLE[m.role or ""]
+		r.role:SetText(role and (role.hex .. role.label .. "|r") or "")
 		r.name:SetText(m.name)
 		r.name:SetTextColor(ClassColor(m.class))
 		r.level:SetText(m.level or 0)
@@ -399,12 +530,12 @@ render["Quests"] = function()
 end
 
 render["Berufe"] = function()
-	local groups = ns:ProfessionGroups()
+	local groups = ns:ProfessionGroups(profFilter)
 	if #groups == 0 then
-		local y = Head(1, 0, "Berufe der Crittler")
-		return Line(1, y, "|cff888888Noch keine Berufe bekannt.|r")
+		local y = Head(1, 28, "Berufe der Crittler")
+		return Line(1, y, profFilter ~= "" and "|cff888888Niemand gefunden.|r" or "|cff888888Noch keine Berufe bekannt.|r")
 	end
-	local y, n = 0, 0
+	local y, n = 28, 0
 	for gi, g in ipairs(groups) do
 		local icon = g.icon and ("|T" .. g.icon .. ":16:16:0:0:64:64:5:59:5:59|t ") or ""
 		y = Head(gi, y + (gi > 1 and 8 or 0), icon .. g.name)
@@ -421,6 +552,36 @@ render["Berufe"] = function()
 			r.bar.text:SetText("")
 			r.value:SetText(e.max > 0 and (e.level .. " / " .. e.max) or tostring(e.level))
 		end
+	end
+	return y
+end
+
+render["Wünsche"] = function()
+	local mine = ns.cdb.wishes
+	local lines = 0
+	local y = Head(1, 28, format("Deine Wunschliste (%d/%d)", #mine, ns.MAX_WISHES))
+	if #mine == 0 then
+		lines = lines + 1
+		y = Line(lines, y, "|cff888888Noch nichts eingetragen.|r")
+	end
+	for i, w in ipairs(mine) do
+		local r
+		r, y = Acquire("wish", i, WishRow, y, 25)
+		r.index = i
+		r.bg:SetShown(i % 2 == 1)
+		r.left:SetText("[" .. w.n .. "]")
+	end
+
+	y = Head(2, y + 8, "Das suchen die anderen")
+	local others = ns:OtherWishes()
+	if #others == 0 then
+		lines = lines + 1
+		return Line(lines, y, "|cff888888Gerade sucht niemand etwas.|r")
+	end
+	for _, e in ipairs(others) do
+		lines = lines + 1
+		local have = e.have > 0 and format("  |cffffd100hast du (%d)|r", e.have) or ""
+		y = Line(lines, y, "[" .. e.n .. "]" .. have, "|cff66ff66" .. table.concat(e.names, ", ") .. "|r")
 	end
 	return y
 end
@@ -486,9 +647,11 @@ end
 ---------------------------------------------------------------------------
 local tabButtons = {}
 
-local function Render()
+Render = function()
 	if not ns.db then return end
 	HideAll()
+	searchBox:SetShown(current == "Berufe")
+	wishBox:SetShown(current == "Wünsche")
 	contentH = math.max(render[current]() or 1, 1)
 	child:SetHeight(contentH)
 	UpdateScroll()
@@ -622,6 +785,19 @@ SlashCmdList["CRITTLER"] = function(input)
 		ns:Toast("Interface\\Icons\\Spell_Holy_SurgeOfLight", "Level-Up!", "Testi ist jetzt Level 42!", 888)
 	elseif cmd == "play" and arg then
 		ns:PlayBoard(strlower(arg))
+	elseif cmd == "beruf" or cmd == "berufe" then
+		ns:PrintProfessions(arg and strtrim(arg) or nil)
+	elseif cmd == "wunsch" then
+		if arg and strtrim(arg) ~= "" then ns:AddWish(arg) else ns:PrintWishes() end
+	elseif cmd == "rolle" then
+		local pick = ({ tank = "TANK", heal = "HEALER", heiler = "HEALER", dd = "DAMAGER", auto = false })[strlower(strtrim(arg or ""))]
+		if pick == nil then
+			ns:Print("Benutzung: /crit rolle tank | heal | dd | auto")
+		else
+			ns.cdb.role = pick or nil
+			ns:SendStatus()
+			ns:Print(pick and ("Deine Rolle: " .. ROLE[pick].label) or "Rolle wird wieder automatisch aus der Spezialisierung gelesen.")
+		end
 	elseif cmd == "minimap" then
 		local mm = ns.db.settings.minimap
 		mm.hide = not mm.hide
@@ -636,6 +812,7 @@ SlashCmdList["CRITTLER"] = function(input)
 		end
 		ns:SendStatus()
 		if ns.SendProfessions then ns:SendProfessions(true) end
+		if ns.SendWishes then ns:SendWishes() end
 		ns:Send("HI") -- alle anderen schicken ihren Stand neu
 		ns:Print("Mitgliederliste und Todesliste geleert.")
 	else
@@ -643,6 +820,9 @@ SlashCmdList["CRITTLER"] = function(input)
 		print("  /crit – Fenster öffnen/schließen")
 		print("  /crit test – Test-Banner anzeigen")
 		print("  /crit play <name> – Sound abspielen (z. B. murloc)")
+		print("  /crit beruf <text> – wer hat welchen Beruf (z. B. schmied)")
+		print("  /crit wunsch <Gegenstand> – auf die Wunschliste setzen")
+		print("  /crit rolle tank | heal | dd | auto – eigene Rolle festlegen")
 		print("  /crit minimap – Minimap-Button ein-/ausblenden")
 		print("  /crit reset – gespeicherte Mitglieder und Tode löschen")
 	end
