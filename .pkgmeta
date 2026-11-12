@@ -1,0 +1,5 @@
+# CurseForge-Paketierung: der Ordner im Zip muss "Crittler" heißen,
+# weil Soundboard.lua die Sounds unter Interface\AddOns\Crittler\Sounds sucht.
+package-as: Crittler
+
+enable-nolib-creation: no

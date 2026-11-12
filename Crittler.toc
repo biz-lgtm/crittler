@@ -1,0 +1,22 @@
+## Interface: 16001
+## Title: |cffffd100Die Crittler|r
+## Notes: Gilden-Addon für Freunde: Level-Feier, Level-Rennen, Todeszähler, Karte, Quests, Berufe, Soundboard, Erfolge und Loot.
+## Author: Die Crittler
+## Version: @project-version@
+## SavedVariables: CrittlerDB
+## SavedVariablesPerCharacter: CrittlerCharDB
+## IconTexture: Interface\Icons\Ability_CriticalStrike
+## AddonCompartmentFunc: Crittler_OnAddonCompartmentClick
+
+Core.lua
+Toast.lua
+Achievements.lua
+LevelUp.lua
+Deaths.lua
+Loot.lua
+Quests.lua
+Professions.lua
+Map.lua
+Soundboard.lua
+Minimap.lua
+UI.lua

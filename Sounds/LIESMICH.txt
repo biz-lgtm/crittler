@@ -1,0 +1,2 @@
+Eigene Sounds (.ogg oder .mp3) hier ablegen und in Soundboard.lua eintragen.
+Beispiel: { key = "airhorn", label = "Airhorn", file = "airhorn.ogg" },
