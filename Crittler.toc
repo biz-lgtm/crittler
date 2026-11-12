@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: |cffffd100Die Crittler|r
-## Notes: Gilden-Addon für Freunde: Level-Feier, Level-Rennen, Todeszähler, Karte, Quests, Berufe, Wunschliste, Soundboard, Erfolge und Loot.
+## Notes: Gilden-Addon für Freunde: Level-Feier, Level-Rennen, Todeszähler, Karte, Quests, Berufe, Wunschliste, Gruppensuche, Termine, Soundboard, Erfolge und Loot.
 ## Author: Die Crittler
 ## Version: @project-version@
 ## SavedVariables: CrittlerDB
@@ -17,6 +17,7 @@ Loot.lua
 Quests.lua
 Professions.lua
 Wishes.lua
+Events.lua
 Map.lua
 Soundboard.lua
 Minimap.lua

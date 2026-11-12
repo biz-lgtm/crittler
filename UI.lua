@@ -1,12 +1,12 @@
 -- Hauptfenster mit Reitern + Slash-Befehle
 local ADDON, ns = ...
 
-local WIDTH, HEIGHT = 540, 500
-local PAD, HEADER_H, TABS_H, FOOTER_H = 14, 46, 30, 38
+local WIDTH, HEIGHT = 640, 520
+local PAD, HEADER_H, TABS_H, FOOTER_H = 14, 46, 30, 8
 local W = WIDTH - PAD * 2 - 8
 local VIEW_H = HEIGHT - HEADER_H - TABS_H - 10 - FOOTER_H - 6
 local WHITE = "Interface\\Buttons\\WHITE8X8"
-local TABS = { "Rennen", "Tode", "Quests", "Berufe", "Wünsche", "Erfolge", "Sounds" }
+local TABS = { "Rennen", "Termine", "Quests", "Berufe", "Wünsche", "Tode", "Erfolge", "Sounds", "Optionen" }
 local ROLE = {
 	TANK = { label = "Tank", hex = "|cff5a99ff", r = 0.35, g = 0.6, b = 1 },
 	HEALER = { label = "Heiler", hex = "|cff4de666", r = 0.3, g = 0.9, b = 0.4 },
@@ -225,6 +225,7 @@ local function MemberTip(self)
 	local role = ROLE[m.role or ""]
 	if role then GameTooltip:AddDoubleLine("Rolle", role.label, 0.7, 0.7, 0.7, role.r, role.g, role.b) end
 	GameTooltip:AddDoubleLine("Level", format("%d (%d%%)", m.level or 0, m.xp or 0), 0.7, 0.7, 0.7, 1, 1, 1)
+	if m.ilvl then GameTooltip:AddDoubleLine("Ausrüstung", "Stufe " .. m.ilvl, 0.7, 0.7, 0.7, 1, 1, 1) end
 	GameTooltip:AddDoubleLine("Zone", m.zone or "?", 0.7, 0.7, 0.7, 1, 1, 1)
 	GameTooltip:AddDoubleLine("Tode", tostring(m.deaths or 0), 0.7, 0.7, 0.7, 1, 1, 1)
 	GameTooltip:AddDoubleLine("Erfolge", AchCount(m) .. " / " .. #ns.achievements, 0.7, 0.7, 0.7, 1, 1, 1)
@@ -394,6 +395,183 @@ end
 if ChatEdit_InsertLink then hooksecurefunc("ChatEdit_InsertLink", InsertLink) end
 if ChatFrameUtil and ChatFrameUtil.InsertLink then hooksecurefunc(ChatFrameUtil, "InsertLink", InsertLink) end
 
+---------------------------------------------------------------------------
+-- Rennen: Umschalter Level / Ausrüstung
+---------------------------------------------------------------------------
+local raceSort = "level"
+local sortButtons = {}
+for i, o in ipairs({ { key = "level", label = "Level" }, { key = "ilvl", label = "Ausrüstung" } }) do
+	local b = FlatButton(child, 110, 22, o.label)
+	b:SetPoint("TOPLEFT", child, "TOPLEFT", (i - 1) * 116, 0)
+	b:SetScript("OnClick", function()
+		raceSort = o.key
+		scrollPos = 0
+		Render()
+	end)
+	b:Hide()
+	sortButtons[o.key] = b
+end
+
+---------------------------------------------------------------------------
+-- Termine: Eingabe oben, Zeilen mit Zusage-Knöpfen
+---------------------------------------------------------------------------
+local evDay = 0
+local evTitle = Input(W, "Was? z. B. Todesminen, Angelabend …", 60)
+evTitle:SetScript("OnEnterPressed", evTitle.ClearFocus)
+evTitle:SetScript("OnTextChanged", function(self)
+	self.hint:SetShown((self:GetText() or "") == "")
+end)
+
+local evCall = FlatButton(child, 180, 24, "Jetzt Gruppe suchen")
+evCall:SetPoint("TOPLEFT", child, "TOPLEFT", 0, -30)
+evCall:Hide()
+
+local evCreate = FlatButton(child, 150, 24, "Termin anlegen")
+evCreate:SetPoint("TOPRIGHT", child, "TOPRIGHT", 0, -30)
+evCreate:Hide()
+
+local evTime = Input(70, "20:00", 5)
+evTime:ClearAllPoints()
+evTime:SetPoint("RIGHT", evCreate, "LEFT", -8, 0)
+evTime:SetScript("OnEnterPressed", evTime.ClearFocus)
+evTime:SetScript("OnTextChanged", function(self)
+	self.hint:SetShown((self:GetText() or "") == "")
+end)
+
+local evDayBtn = FlatButton(child, 120, 24, "Heute")
+evDayBtn:SetPoint("RIGHT", evTime, "LEFT", -8, 0)
+evDayBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+evDayBtn:SetScript("OnClick", function(self, button)
+	evDay = (evDay + (button == "RightButton" and -1 or 1)) % 14
+	self.text:SetText(ns:DayLabel(time() + evDay * 86400))
+end)
+evDayBtn:Hide()
+
+evCall:SetScript("OnClick", function()
+	if ns:CreateEvent("call", evTitle:GetText()) then evTitle:SetText("") end
+	evTitle:ClearFocus()
+end)
+evCreate:SetScript("OnClick", function()
+	local text = strtrim(evTime:GetText() or "")
+	if text == "" then text = "20:00" end
+	local h, m = text:match("^(%d%d?)[:.](%d%d)$")
+	if not h then h = text:match("^(%d%d?)$") m = "0" end
+	if ns:CreateEvent("date", evTitle:GetText(), evDay, tonumber(h), tonumber(m)) then
+		evTitle:SetText("")
+	end
+	evTitle:ClearFocus()
+	evTime:ClearFocus()
+end)
+
+local function EventTip(self)
+	local ev = self.id and ns.db.events[self.id]
+	if not ev then return end
+	local yes, no = ns:EventSummary(ev)
+	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+	GameTooltip:AddLine(ev.title, 1, 0.82, 0)
+	GameTooltip:AddLine(ns:EventWhen(ev) .. ", von " .. ev.by, 0.8, 0.8, 0.8)
+	GameTooltip:AddLine(" ")
+	GameTooltip:AddLine("Dabei (" .. #yes .. ")", 0.4, 1, 0.4)
+	for _, e in ipairs(yes) do
+		local role = ROLE[e.role]
+		GameTooltip:AddDoubleLine("  " .. e.name, role and role.label or "", 1, 1, 1,
+			role and role.r or 0.6, role and role.g or 0.6, role and role.b or 0.6)
+	end
+	if #no > 0 then
+		GameTooltip:AddLine("Abgesagt (" .. #no .. ")", 1, 0.4, 0.4)
+		for _, name in ipairs(no) do
+			GameTooltip:AddLine("  " .. name, 0.7, 0.7, 0.7)
+		end
+	end
+	GameTooltip:Show()
+end
+
+local function EventRow()
+	local r = BaseRow(60)
+	r.title = FS(r, "GameFontNormal", W - 200)
+	r.title:SetPoint("TOPLEFT", r, "TOPLEFT", 10, -7)
+	r.when = FS(r, "GameFontHighlightSmall", 170, "RIGHT")
+	r.when:SetPoint("TOPRIGHT", r, "TOPRIGHT", -10, -8)
+	r.who = FS(r, "GameFontHighlightSmall", W - 20)
+	r.who:SetPoint("TOPLEFT", r.title, "BOTTOMLEFT", 0, -4)
+	r.roles = FS(r, "GameFontHighlightSmall", W - 200)
+	r.roles:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 10, 8)
+	r.del = FlatButton(r, 22, 20, "x")
+	r.del:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", -8, 5)
+	r.no = FlatButton(r, 64, 20, "Nein")
+	r.no:SetPoint("RIGHT", r.del, "LEFT", -6, 0)
+	r.yes = FlatButton(r, 64, 20, "Dabei")
+	r.yes:SetPoint("RIGHT", r.no, "LEFT", -6, 0)
+	r.yes:SetScript("OnClick", function() if r.id then ns:ReplyEvent(r.id, "y") end end)
+	r.no:SetScript("OnClick", function() if r.id then ns:ReplyEvent(r.id, "n") end end)
+	r.del:SetScript("OnClick", function() if r.id then ns:CancelEvent(r.id) end end)
+	r.tip = EventTip
+	return r
+end
+
+---------------------------------------------------------------------------
+-- Optionen: Häkchen- und Auswahl-Zeilen
+---------------------------------------------------------------------------
+local function CheckRow()
+	local r = BaseRow(26)
+	r.box = CreateFrame("Frame", nil, r, "BackdropTemplate")
+	r.box:SetSize(14, 14)
+	r.box:SetPoint("LEFT", r, "LEFT", 10, 0)
+	Skin(r.box, 0.14, 0.14, 0.18, 1)
+	r.box:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+	r.fill = r.box:CreateTexture(nil, "ARTWORK")
+	r.fill:SetColorTexture(1, 0.82, 0, 1)
+	r.fill:SetPoint("TOPLEFT", r.box, "TOPLEFT", 3, -3)
+	r.fill:SetPoint("BOTTOMRIGHT", r.box, "BOTTOMRIGHT", -3, 3)
+	r.label = FS(r, "GameFontHighlight", W - 60)
+	r.label:SetPoint("LEFT", r.box, "RIGHT", 8, 0)
+	r:SetScript("OnMouseUp", function(self)
+		if self.onClick then self.onClick() end
+	end)
+	return r
+end
+
+local function ChoiceRow()
+	local r = BaseRow(30)
+	r.label = FS(r, "GameFontHighlight", 170)
+	r.label:SetPoint("LEFT", r, "LEFT", 10, 0)
+	r.buttons = {}
+	for i = 1, 4 do
+		local b = FlatButton(r, 96, 22)
+		b:SetPoint("LEFT", r, "LEFT", 186 + (i - 1) * 102, 0)
+		b:SetScript("OnClick", function(self)
+			if self.pick then self.pick() end
+		end)
+		r.buttons[i] = b
+	end
+	return r
+end
+
+-- options: { { wert, "Beschriftung" }, ... }; onPick(wert) wird beim Klick aufgerufen
+local function Choice(i, y, label, options, currentValue, onPick)
+	local r
+	r, y = Acquire("choice", i, ChoiceRow, y, 31)
+	r.bg:SetShown(i % 2 == 1)
+	r.label:SetText(label)
+	for bi, b in ipairs(r.buttons) do
+		local o = options[bi]
+		b:SetShown(o ~= nil)
+		if o then
+			b.text:SetText(o[2])
+			if o[1] == currentValue then
+				b.text:SetTextColor(1, 0.82, 0)
+			else
+				b.text:SetTextColor(0.75, 0.75, 0.75)
+			end
+			b.pick = function()
+				onPick(o[1])
+				Render()
+			end
+		end
+	end
+	return y
+end
+
 local function SoundButton()
 	local b = FlatButton(child, (W - 16) / 3, 34)
 	b:SetScript("OnClick", function(self)
@@ -424,7 +602,18 @@ end
 local render = {}
 
 render["Rennen"] = function()
-	local list = ns:SortedMembers()
+	local list = ns:SortedMembers(raceSort)
+	local byGear, bestGear = raceSort == "ilvl", 1
+	for key, b in pairs(sortButtons) do
+		if key == raceSort then
+			b.text:SetTextColor(1, 0.82, 0)
+		else
+			b.text:SetTextColor(0.75, 0.75, 0.75)
+		end
+	end
+	for _, m in ipairs(list) do
+		bestGear = math.max(bestGear, m.ilvl or 0)
+	end
 
 	-- Wer ist gerade online, nach Rolle
 	local count, known = { TANK = 0, HEALER = 0, DAMAGER = 0 }, false
@@ -434,9 +623,9 @@ render["Rennen"] = function()
 			known = true
 		end
 	end
-	local y = 0
+	local y = 28
 	if known then
-		y = Head(1, 0, format("Online:  %s%d Tank|r   %s%d Heiler|r   %s%d DD|r",
+		y = Head(1, 22, format("Online:  %s%d Tank|r   %s%d Heiler|r   %s%d DD|r",
 			ROLE.TANK.hex, count.TANK, ROLE.HEALER.hex, count.HEALER, ROLE.DAMAGER.hex, count.DAMAGER))
 	end
 
@@ -475,9 +664,17 @@ render["Rennen"] = function()
 		r.role:SetText(role and (role.hex .. role.label .. "|r") or "")
 		r.name:SetText(m.name)
 		r.name:SetTextColor(ClassColor(m.class))
-		r.level:SetText(m.level or 0)
-		r.bar:SetValue(m.xp or 0)
-		r.bar.text:SetText((m.xp or 0) .. "%")
+		if byGear then
+			r.level:SetText(m.ilvl or "–")
+			r.bar:SetStatusBarColor(0.9, 0.6, 0.2)
+			r.bar:SetValue((m.ilvl or 0) / bestGear * 100)
+			r.bar.text:SetText("Lvl " .. (m.level or 0))
+		else
+			r.level:SetText(m.level or 0)
+			r.bar:SetStatusBarColor(0.55, 0.3, 0.9)
+			r.bar:SetValue(m.xp or 0)
+			r.bar.text:SetText((m.xp or 0) .. "%")
+		end
 		r.zone:SetText(m.zone or "?")
 		if not online then r:SetAlpha(0.5) end
 	end
@@ -586,6 +783,107 @@ render["Wünsche"] = function()
 	return y
 end
 
+render["Termine"] = function()
+	local list = ns:SortedEvents()
+	local y = 60
+	if #list == 0 then
+		y = Head(1, y, "Gruppensuche und Termine")
+		return Line(1, y, "|cff888888Nichts geplant. Oben eintragen und loslegen.|r")
+	end
+	local heads, lastKind = 0, nil
+	for i, ev in ipairs(list) do
+		if ev.kind ~= lastKind then
+			heads = heads + 1
+			y = Head(heads, y + (heads > 1 and 8 or 0), ev.kind == "call" and "Jetzt gesucht" or "Termine")
+			lastKind = ev.kind
+		end
+		local r
+		r, y = Acquire("event", i, EventRow, y, 62)
+		local yes, no, count = ns:EventSummary(ev)
+		local mine = ev.r[ns.me]
+		r.id = ev.id
+		r.bg:SetShown(i % 2 == 1)
+		r.title:SetText(ev.title)
+		r.when:SetText(ns:EventWhen(ev))
+
+		local names = {}
+		for _, e in ipairs(yes) do
+			tinsert(names, e.name)
+		end
+		r.who:SetText(format("|cff888888von %s|r   Dabei: |cff66ff66%s|r", ev.by, #names > 0 and table.concat(names, ", ") or "noch niemand"))
+
+		local parts = {
+			ROLE.TANK.hex .. count.TANK .. " Tank|r",
+			ROLE.HEALER.hex .. count.HEALER .. " Heiler|r",
+			ROLE.DAMAGER.hex .. count.DAMAGER .. " DD|r",
+		}
+		if count.NONE > 0 then tinsert(parts, "|cffaaaaaa" .. count.NONE .. " ohne Rolle|r") end
+		if #no > 0 then tinsert(parts, "|cffff6666" .. #no .. " abgesagt|r") end
+		r.roles:SetText(table.concat(parts, "   "))
+
+		if mine == "y" then r.yes.text:SetTextColor(0.4, 1, 0.4) else r.yes.text:SetTextColor(0.8, 0.8, 0.8) end
+		if mine == "n" then r.no.text:SetTextColor(1, 0.4, 0.4) else r.no.text:SetTextColor(0.8, 0.8, 0.8) end
+		r.del:SetShown(ns:IsMe(ev.by))
+	end
+	return y
+end
+
+local CHECK_OPTIONS = {
+	{ label = "Sounds abspielen", key = "sound" },
+	{ label = "Banner anzeigen", key = "toasts" },
+	{ label = "Freunde auf der Weltkarte anzeigen", key = "pins" },
+	{ label = "Eigene Position mit der Gilde teilen", key = "sharePos" },
+	{ label = "Erinnerungen an Termine", key = "reminders" },
+}
+
+render["Optionen"] = function()
+	local s = ns.db.settings
+	local y = Head(1, 0, "Anzeige und Ton")
+	local n = 0
+	for _, o in ipairs(CHECK_OPTIONS) do
+		n = n + 1
+		local r
+		r, y = Acquire("check", n, CheckRow, y, 27)
+		r.bg:SetShown(n % 2 == 1)
+		r.label:SetText(o.label)
+		r.fill:SetShown(s[o.key] and true or false)
+		r.onClick = function()
+			s[o.key] = not s[o.key]
+			if ns.UpdatePins then ns.UpdatePins() end
+			Render()
+		end
+	end
+	n = n + 1
+	local r
+	r, y = Acquire("check", n, CheckRow, y, 27)
+	r.bg:SetShown(n % 2 == 1)
+	r.label:SetText("Knopf an der Minimap anzeigen")
+	r.fill:SetShown(not s.minimap.hide)
+	r.onClick = function()
+		s.minimap.hide = not s.minimap.hide
+		ns:UpdateMinimapButton()
+		Render()
+	end
+
+	y = Head(2, y + 8, "Auswahl")
+	y = Choice(1, y, "Loot teilen ab", { { 2, "Ungewöhnlich" }, { 3, "Selten" }, { 4, "Episch" } },
+		s.lootQuality, function(v) s.lootQuality = v end)
+	y = Choice(2, y, "Meine Rolle", { { false, "Automatisch" }, { "TANK", "Tank" }, { "HEALER", "Heiler" }, { "DAMAGER", "DD" } },
+		ns.cdb.role or false, function(v)
+			ns.cdb.role = v or nil
+			ns:SendStatus()
+		end)
+	y = Choice(3, y, "Ton-Kanal", { { "Master", "Gesamt" }, { "SFX", "Effekte" }, { "Dialog", "Dialog" } },
+		s.soundChannel or "Master", function(v) s.soundChannel = v end)
+	y = Choice(4, y, "Banner", { { "test", "Testen" } }, nil, function()
+		ns:Toast("Interface\\Icons\\Spell_Holy_SurgeOfLight", "Level-Up!", "Testi ist jetzt Level 42!", 888)
+	end)
+
+	y = Head(3, y + 8, "Über")
+	y = Line(1, y, "Die Crittler", "Version " .. ns.VERSION)
+	return y
+end
+
 render["Erfolge"] = function()
 	local total, mine = #ns.achievements, 0
 	for _, a in ipairs(ns.achievements) do
@@ -652,6 +950,15 @@ Render = function()
 	HideAll()
 	searchBox:SetShown(current == "Berufe")
 	wishBox:SetShown(current == "Wünsche")
+	for _, b in pairs(sortButtons) do
+		b:SetShown(current == "Rennen")
+	end
+	local onEvents = current == "Termine"
+	evTitle:SetShown(onEvents)
+	evTime:SetShown(onEvents)
+	evCall:SetShown(onEvents)
+	evCreate:SetShown(onEvents)
+	evDayBtn:SetShown(onEvents)
 	contentH = math.max(render[current]() or 1, 1)
 	child:SetHeight(contentH)
 	UpdateScroll()
@@ -701,52 +1008,8 @@ for i, name in ipairs(TABS) do
 	tabButtons[name] = b
 end
 
----------------------------------------------------------------------------
--- Fußzeile mit Optionen
----------------------------------------------------------------------------
-local footLine = f:CreateTexture(nil, "ARTWORK")
-footLine:SetColorTexture(1, 1, 1, 0.08)
-footLine:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 1, FOOTER_H)
-footLine:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, FOOTER_H)
-footLine:SetHeight(1)
-
-local OPTIONS = {
-	{ key = "sound", label = "Sounds" },
-	{ key = "toasts", label = "Banner" },
-	{ key = "pins", label = "Karten-Pins" },
-	{ key = "sharePos", label = "Position teilen" },
-}
-local checks = {}
-for i, o in ipairs(OPTIONS) do
-	local c = CreateFrame("Button", nil, f)
-	c:SetSize(120, 22)
-	c:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", PAD + (i - 1) * 128, 8)
-	c.box = CreateFrame("Frame", nil, c, "BackdropTemplate")
-	c.box:SetSize(14, 14)
-	c.box:SetPoint("LEFT", c, "LEFT", 0, 0)
-	Skin(c.box, 0.14, 0.14, 0.18, 1)
-	c.box:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
-	c.fill = c.box:CreateTexture(nil, "ARTWORK")
-	c.fill:SetColorTexture(1, 0.82, 0, 1)
-	c.fill:SetPoint("TOPLEFT", c.box, "TOPLEFT", 3, -3)
-	c.fill:SetPoint("BOTTOMRIGHT", c.box, "BOTTOMRIGHT", -3, 3)
-	c.label = FS(c, "GameFontHighlightSmall")
-	c.label:SetPoint("LEFT", c.box, "RIGHT", 6, 0)
-	c.label:SetText(o.label)
-	c:SetScript("OnClick", function(self)
-		ns.db.settings[o.key] = not ns.db.settings[o.key]
-		self.fill:SetShown(ns.db.settings[o.key])
-		if ns.UpdatePins then ns.UpdatePins() end
-	end)
-	checks[o.key] = c
-end
-
 f:SetScript("OnShow", function()
-	if not ns.db then return end
-	for key, c in pairs(checks) do
-		c.fill:SetShown(ns.db.settings[key])
-	end
-	Render()
+	if ns.db then Render() end
 end)
 
 ---------------------------------------------------------------------------
@@ -785,6 +1048,8 @@ SlashCmdList["CRITTLER"] = function(input)
 		ns:Toast("Interface\\Icons\\Spell_Holy_SurgeOfLight", "Level-Up!", "Testi ist jetzt Level 42!", 888)
 	elseif cmd == "play" and arg then
 		ns:PlayBoard(strlower(arg))
+	elseif cmd == "suche" then
+		ns:CreateEvent("call", arg or "")
 	elseif cmd == "beruf" or cmd == "berufe" then
 		ns:PrintProfessions(arg and strtrim(arg) or nil)
 	elseif cmd == "wunsch" then
@@ -820,6 +1085,7 @@ SlashCmdList["CRITTLER"] = function(input)
 		print("  /crit – Fenster öffnen/schließen")
 		print("  /crit test – Test-Banner anzeigen")
 		print("  /crit play <name> – Sound abspielen (z. B. murloc)")
+		print("  /crit suche <text> – Gruppensuche starten (z. B. Todesminen)")
 		print("  /crit beruf <text> – wer hat welchen Beruf (z. B. schmied)")
 		print("  /crit wunsch <Gegenstand> – auf die Wunschliste setzen")
 		print("  /crit rolle tank | heal | dd | auto – eigene Rolle festlegen")

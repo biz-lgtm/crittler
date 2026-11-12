@@ -57,7 +57,9 @@ end)
 local DB_DEFAULTS = {
 	members = {},
 	deathLog = {},
+	events = {}, eventsGone = {},
 	settings = { sound = true, toasts = true, pins = true, sharePos = true, lootQuality = 3,
+		soundChannel = "Master", reminders = true,
 		minimap = { hide = false, angle = 215 } },
 }
 local CHAR_DEFAULTS = {
@@ -176,12 +178,14 @@ function ns:IsOnline(name)
 	return l ~= nil and l.seen ~= nil and (time() - l.seen) < 200
 end
 
-function ns:SortedMembers()
+-- mode "ilvl": nach Gegenstandsstufe, sonst nach Level und XP
+function ns:SortedMembers(mode)
 	local list = {}
 	for _, m in pairs(ns.db.members) do
 		tinsert(list, m)
 	end
 	table.sort(list, function(a, b)
+		if mode == "ilvl" and (a.ilvl or 0) ~= (b.ilvl or 0) then return (a.ilvl or 0) > (b.ilvl or 0) end
 		if a.level ~= b.level then return a.level > b.level end
 		if a.xp ~= b.xp then return a.xp > b.xp end
 		return a.name < b.name
@@ -282,15 +286,43 @@ function ns:MySpec()
 	return spec, role
 end
 
+-- Durchschnittliche Stufe der angelegten Ausrüstung (0 = unbekannt)
+function ns:MyItemLevel()
+	local result = 0
+	pcall(function()
+		if GetAverageItemLevel then
+			local _, equipped = GetAverageItemLevel()
+			if equipped and not IsSecret(equipped) then
+				result = floor(equipped + 0.5)
+				return
+			end
+		end
+		local levelOf = (C_Item and C_Item.GetDetailedItemLevelInfo) or GetDetailedItemLevelInfo
+		local sum, n = 0, 0
+		for slot = 1, 18 do
+			local link = slot ~= 4 and GetInventoryItemLink("player", slot) -- 4 = Hemd
+			if link then
+				local lvl = levelOf and levelOf(link)
+				if not lvl and GetItemInfo then lvl = select(4, GetItemInfo(link)) end
+				if lvl then sum, n = sum + lvl, n + 1 end
+			end
+		end
+		if n > 0 then result = floor(sum / n + 0.5) end
+	end)
+	return result
+end
+
 function ns:SendStatus()
 	if not ns.db then return end
 	local level, xp, zone, class = ns:MyStatus()
 	local spec, role = ns:MySpec()
+	local ilvl = ns:MyItemLevel()
 	local m = ns:Member(ns.me)
 	m.level, m.xp, m.zone, m.class, m.deaths = level, xp, zone, class, ns.cdb.deaths
 	m.spec = spec ~= "" and spec or nil
 	m.role = role ~= "" and role or nil
-	ns:Send("ST", level, xp, zone, class, ns.cdb.deaths, ns.VERSION, UnitGUID and UnitGUID("player") or "", spec, role)
+	m.ilvl = ilvl > 0 and ilvl or nil
+	ns:Send("ST", level, xp, zone, class, ns.cdb.deaths, ns.VERSION, UnitGUID and UnitGUID("player") or "", spec, role, ilvl)
 	ns:RefreshUI()
 end
 
@@ -314,7 +346,7 @@ end
 
 local versionWarned = false
 
-ns:Handle("ST", function(name, isMe, level, xp, zone, class, deaths, version, guid, spec, role)
+ns:Handle("ST", function(name, isMe, level, xp, zone, class, deaths, version, guid, spec, role, ilvl)
 	if isMe then return end
 	-- eigenes Echo unter noch unbekanntem vollen Namen: an der Charakter-ID erkennen
 	if guid and guid ~= "" and guid == ns.guid then
@@ -346,6 +378,8 @@ ns:Handle("ST", function(name, isMe, level, xp, zone, class, deaths, version, gu
 		m.spec = spec ~= "" and spec or nil
 		m.role = ROLES[role or ""] and role or nil
 	end
+	ilvl = tonumber(ilvl)
+	if ilvl then m.ilvl = ilvl > 0 and ilvl or nil end
 	if version and version ~= "" then
 		m.version = version
 		if not versionWarned and VersionNum(version) > VersionNum(ns.VERSION) then
@@ -365,6 +399,7 @@ ns:Handle("HI", function(name, isMe)
 		if ns.SendAchievements then ns:SendAchievements() end
 		if ns.SendProfessions then ns:SendProfessions(true) end
 		if ns.SendWishes then ns:SendWishes() end
+		if ns.SendEvents then ns:SendEvents() end
 	end)
 end)
 
@@ -393,11 +428,13 @@ local function Hello()
 	if ns.SendAchievements then ns:SendAchievements() end
 	if ns.SendProfessions then ns:SendProfessions(true) end
 	if ns.SendWishes then ns:SendWishes() end
+	if ns.SendEvents then ns:SendEvents() end
 end
 
 ns:On("PLAYER_XP_UPDATE", function() ns:QueueStatus(5) end)
 ns:On("ZONE_CHANGED_NEW_AREA", function() ns:QueueStatus(2) end)
 ns:On("PLAYER_SPECIALIZATION_CHANGED", function() ns:QueueStatus(2) end)
+ns:On("PLAYER_EQUIPMENT_CHANGED", function() ns:QueueStatus(5) end)
 
 ---------------------------------------------------------------------------
 -- Start

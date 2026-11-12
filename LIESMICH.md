@@ -19,6 +19,10 @@ Falls das Addon als „veraltet“ markiert ist: in `Crittler.toc` die Zahl hint
 - **Gemeinsame Quests** – Hinweis im Chat beim Annehmen, Übersicht im Reiter „Quests“.
 - **Klasse, Spezialisierung, Rolle** – im Reiter „Rennen“ mit Klassen-Icon und Tank/Heiler/DD,
   oben die Übersicht, welche Rollen gerade online sind.
+- **Gruppensuche und Termine** – „Jetzt Gruppe suchen“ oder einen Termin mit Tag und Uhrzeit anlegen.
+  Alle bekommen ein Banner, sagen per Klick zu oder ab, und man sieht, ob Tank, Heiler und DDs
+  dabei sind. Termine erinnern 15 Minuten vorher und zum Start (Reiter „Termine“).
+- **Ausrüstungs-Rangliste** – im Reiter „Rennen“ zwischen Level und Ausrüstung (Gegenstandsstufe) umschalten.
 - **Berufe** – wer welchen Beruf auf welcher Stufe hat, nach Beruf gruppiert, mit Suchfeld (Reiter „Berufe“).
 - **Wunschliste** – bis zu 10 Gegenstände eintragen (Shift-Klick oder Name). Findet ein anderer
   Crittler so etwas oder hat es in der Tasche, bekommen beide einen Hinweis (Reiter „Wünsche“).
@@ -34,14 +38,16 @@ mit gedrückter Maustaste lässt er sich um die Minimap ziehen.
 - `/crit` – Fenster öffnen/schließen
 - `/crit test` – Test-Banner
 - `/crit play murloc` – Sound abspielen
+- `/crit suche Todesminen` – Gruppensuche starten
 - `/crit beruf schmied` – wer hat diesen Beruf, mit Stufe
 - `/crit wunsch <Gegenstand>` – auf die Wunschliste setzen (ohne Angabe: Liste anzeigen)
 - `/crit rolle tank|heal|dd|auto` – eigene Rolle von Hand festlegen
 - `/crit minimap` – Minimap-Button ein-/ausblenden
 - `/crit reset` – gespeicherte Mitglieder und Tode löschen
 
-Unten im Fenster lassen sich Sounds, Banner, Karten-Pins und das Teilen der eigenen
-Position einzeln abschalten.
+Im Reiter „Optionen“ lassen sich Sounds, Banner, Karten-Pins, das Teilen der eigenen Position,
+Termin-Erinnerungen und der Minimap-Knopf abschalten sowie Loot-Schwelle, eigene Rolle und
+Ton-Kanal einstellen.
 
 ## Neue Version veröffentlichen (CurseForge)
 Die Versionsnummer steht nirgends im Code, sie kommt aus dem Git-Tag.
@@ -63,4 +69,4 @@ Die Commit-Nachrichten seit dem letzten Tag werden zum Changelog.
   Alle brauchen dieselbe Datei. Danach das Spiel neu starten.
 - **Eigene Erfolge:** Liste oben in `Achievements.lua`. Vergeben wird mit `ns:Award("key")`.
 - **Sprüche:** Level-Sprüche in `LevelUp.lua`, Todes-Sprüche in `Deaths.lua`.
-- **Loot-Schwelle:** `/run CrittlerDB.settings.lootQuality = 4` teilt nur noch Episches (3 = selten).
+- **Loot-Schwelle:** im Reiter „Optionen“ unter „Loot teilen ab“.

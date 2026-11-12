@@ -38,10 +38,11 @@ text:SetWordWrap(false)
 
 function ns:PlaySound(sound)
 	if not sound or not ns.db or not ns.db.settings.sound then return end
+	local channel = ns.db.settings.soundChannel or "Master"
 	if type(sound) == "number" then
-		pcall(PlaySound, sound, "Master")
+		pcall(PlaySound, sound, channel)
 	else
-		pcall(PlaySoundFile, sound, "Master")
+		pcall(PlaySoundFile, sound, channel)
 	end
 end
 
