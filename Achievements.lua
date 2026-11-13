@@ -110,6 +110,7 @@ end)
 ns:On("QUEST_TURNED_IN", function()
 	if not ns.cdb then return end
 	ns.cdb.questsDone = ns.cdb.questsDone + 1
+	if ns.WeekAdd then ns:WeekAdd("q") end
 	if ns.cdb.questsDone >= 50 then ns:Award("q50") end
 	if ns.cdb.questsDone >= 250 then ns:Award("q250") end
 end)

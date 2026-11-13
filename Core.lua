@@ -59,7 +59,7 @@ local DB_DEFAULTS = {
 	deathLog = {},
 	events = {}, eventsGone = {},
 	settings = { sound = true, toasts = true, pins = true, sharePos = true, lootQuality = 3,
-		soundChannel = "Master", reminders = true,
+		soundChannel = "Master", reminders = true, showInfo = true,
 		minimap = { hide = false, angle = 215 } },
 }
 local CHAR_DEFAULTS = {
@@ -186,6 +186,10 @@ function ns:SortedMembers(mode)
 	end
 	table.sort(list, function(a, b)
 		if mode == "ilvl" and (a.ilvl or 0) ~= (b.ilvl or 0) then return (a.ilvl or 0) > (b.ilvl or 0) end
+		if mode == "week" then
+			local sa, sb = ns:WeekScore(a), ns:WeekScore(b)
+			if sa ~= sb then return sa > sb end
+		end
 		if a.level ~= b.level then return a.level > b.level end
 		if a.xp ~= b.xp then return a.xp > b.xp end
 		return a.name < b.name
@@ -400,6 +404,7 @@ ns:Handle("HI", function(name, isMe)
 		if ns.SendProfessions then ns:SendProfessions(true) end
 		if ns.SendWishes then ns:SendWishes() end
 		if ns.SendEvents then ns:SendEvents() end
+		if ns.SendWeek then ns:SendWeek() end
 	end)
 end)
 
@@ -429,6 +434,7 @@ local function Hello()
 	if ns.SendProfessions then ns:SendProfessions(true) end
 	if ns.SendWishes then ns:SendWishes() end
 	if ns.SendEvents then ns:SendEvents() end
+	if ns.SendWeek then ns:SendWeek() end
 end
 
 ns:On("PLAYER_XP_UPDATE", function() ns:QueueStatus(5) end)

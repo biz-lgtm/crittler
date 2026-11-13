@@ -28,6 +28,7 @@ ns:On("PLAYER_DEAD", function()
 	local zone = GetRealZoneText() or "?"
 
 	ns:Send("DE", zone, c.deaths)
+	if ns.WeekAdd then ns:WeekAdd("d") end
 	LogDeath(ns.me, zone)
 	ns:Member(ns.me).deaths = c.deaths
 	ns:Print(format("Das war Tod Nummer %d.", c.deaths))

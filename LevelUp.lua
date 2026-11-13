@@ -14,6 +14,7 @@ ns:On("PLAYER_LEVEL_UP", function(level)
 	if not ns.cdb then return end
 	level = tonumber(level) or UnitLevel("player") or 0
 	ns:Send("LV", level)
+	if ns.WeekAdd then ns:WeekAdd("l") end
 	ns.cdb.levelsNoDeath = ns.cdb.levelsNoDeath + 1
 	if ns.cdb.levelsNoDeath >= 10 then ns:Award("zaeh") end
 	ns:CheckLevelAchievements(level)

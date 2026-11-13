@@ -18,6 +18,7 @@ Quests.lua
 Professions.lua
 Wishes.lua
 Events.lua
+Week.lua
 Map.lua
 Soundboard.lua
 Minimap.lua

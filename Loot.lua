@@ -34,14 +34,15 @@ ns:On("CHAT_MSG_LOOT", function(text, _, _, _, looter)
 	if name and ns.CheckWishLoot then ns:CheckWishLoot(id, name) end
 	if not name or not quality then return end
 
-	-- Erfolge unabhängig von der Teilen-Schwelle
+	local now = time()
+	if id == lastID and now - lastTime < 3 then return end -- Event kann doppelt feuern
+	lastID, lastTime = id, now
+
+	-- Erfolge und Wochenstatistik unabhängig von der Teilen-Schwelle
 	if quality >= 3 then ns:Award("blau") end
+	if quality >= 3 and ns.WeekAdd then ns:WeekAdd("o") end
 	if quality >= 4 then ns:Award("lila") end
 	if quality < ns.db.settings.lootQuality then return end
-
-	local now = time()
-	if id == lastID and now - lastTime < 3 then return end
-	lastID, lastTime = id, now
 
 	ns:Send("LO", id, quality, name)
 end)

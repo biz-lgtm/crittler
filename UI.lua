@@ -6,7 +6,7 @@ local PAD, HEADER_H, TABS_H, FOOTER_H = 14, 46, 30, 8
 local W = WIDTH - PAD * 2 - 8
 local VIEW_H = HEIGHT - HEADER_H - TABS_H - 10 - FOOTER_H - 6
 local WHITE = "Interface\\Buttons\\WHITE8X8"
-local TABS = { "Rennen", "Termine", "Quests", "Berufe", "Wünsche", "Tode", "Erfolge", "Sounds", "Optionen" }
+local TABS = { "Statistiken", "Termine", "Quests", "Berufe", "Wünsche", "Tode", "Erfolge", "Sounds", "Optionen" }
 local ROLE = {
 	TANK = { label = "Tank", hex = "|cff5a99ff", r = 0.35, g = 0.6, b = 1 },
 	HEALER = { label = "Heiler", hex = "|cff4de666", r = 0.3, g = 0.9, b = 0.4 },
@@ -15,7 +15,7 @@ local ROLE = {
 local CLASS_ICONS = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
 local Render -- wird weiter unten definiert
 local RANK = { { 1, 0.82, 0 }, { 0.8, 0.8, 0.85 }, { 0.8, 0.5, 0.25 }, [0] = { 0.5, 0.5, 0.5 } }
-local current = "Rennen"
+local current = "Statistiken"
 
 ---------------------------------------------------------------------------
 -- Bausteine
@@ -100,14 +100,26 @@ f:RegisterForDrag("LeftButton")
 f:SetScript("OnDragStart", f.StartMoving)
 f:SetScript("OnDragStop", f.StopMovingOrSizing)
 Skin(f, 0.05, 0.05, 0.07, 0.97)
+f:SetBackdropBorderColor(0.34, 0.28, 0.08, 1)
 f:Hide()
 tinsert(UISpecialFrames, "CrittlerFrame") -- schließt mit ESC
 
+-- Kopf mit leichtem Farbverlauf (fällt auf einfarbig zurück, falls der Client das nicht kann)
 local headBg = f:CreateTexture(nil, "BORDER")
-headBg:SetColorTexture(0.1, 0.1, 0.13, 1)
 headBg:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
 headBg:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -1)
 headBg:SetHeight(HEADER_H + TABS_H)
+headBg:SetColorTexture(1, 1, 1, 1)
+if not (CreateColor and pcall(headBg.SetGradient, headBg, "VERTICAL",
+		CreateColor(0.08, 0.08, 0.1, 1), CreateColor(0.17, 0.15, 0.1, 1))) then
+	headBg:SetColorTexture(0.1, 0.1, 0.13, 1)
+end
+
+local headLine = f:CreateTexture(nil, "ARTWORK")
+headLine:SetColorTexture(1, 0.82, 0, 0.18)
+headLine:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -(HEADER_H + TABS_H))
+headLine:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -(HEADER_H + TABS_H))
+headLine:SetHeight(1)
 
 local accent = f:CreateTexture(nil, "ARTWORK")
 accent:SetColorTexture(1, 0.82, 0, 1)
@@ -122,15 +134,33 @@ logo:SetTexture("Interface\\Icons\\Ability_CriticalStrike")
 logo:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
 local title = FS(f, "GameFontNormalLarge")
-title:SetPoint("LEFT", logo, "RIGHT", 10, 0)
+title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 10, 1)
 title:SetText("Die Crittler")
 
+local subtitle = FS(f, "GameFontDisableSmall")
+subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
+subtitle:SetText("Statistiken, Termine, Berufe und Unfug")
+
 local summary = FS(f, "GameFontDisableSmall", 220, "RIGHT")
-summary:SetPoint("TOPRIGHT", f, "TOPRIGHT", -44, -20)
+summary:SetPoint("TOPRIGHT", f, "TOPRIGHT", -72, -20)
 
 local close = FlatButton(f, 22, 22, "X")
 close:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD, -13)
 close:SetScript("OnClick", function() f:Hide() end)
+
+-- "?" blendet die Erklärungen oben in jedem Reiter ein und aus
+local help = FlatButton(f, 22, 22, "?")
+help:SetPoint("RIGHT", close, "LEFT", -6, 0)
+help:SetScript("OnClick", function()
+	ns.db.settings.showInfo = not ns.db.settings.showInfo
+	Render()
+end)
+help:HookScript("OnEnter", function(self)
+	GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+	GameTooltip:AddLine("Erklärungen ein- oder ausblenden", 1, 1, 1)
+	GameTooltip:Show()
+end)
+help:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
 -- Scrollbereich (Mausrad) mit schmalem Balken
 local scroll = CreateFrame("ScrollFrame", nil, f)
@@ -396,11 +426,12 @@ if ChatEdit_InsertLink then hooksecurefunc("ChatEdit_InsertLink", InsertLink) en
 if ChatFrameUtil and ChatFrameUtil.InsertLink then hooksecurefunc(ChatFrameUtil, "InsertLink", InsertLink) end
 
 ---------------------------------------------------------------------------
--- Rennen: Umschalter Level / Ausrüstung
+-- Statistiken: Umschalter Level / Ausrüstung / Woche
 ---------------------------------------------------------------------------
 local raceSort = "level"
 local sortButtons = {}
-for i, o in ipairs({ { key = "level", label = "Level" }, { key = "ilvl", label = "Ausrüstung" } }) do
+local SORTS = { { key = "level", label = "Level" }, { key = "ilvl", label = "Ausrüstung" }, { key = "week", label = "Diese Woche" } }
+for i, o in ipairs(SORTS) do
 	local b = FlatButton(child, 110, 22, o.label)
 	b:SetPoint("TOPLEFT", child, "TOPLEFT", (i - 1) * 116, 0)
 	b:SetScript("OnClick", function()
@@ -601,7 +632,7 @@ end
 ---------------------------------------------------------------------------
 local render = {}
 
-render["Rennen"] = function()
+render["Statistiken"] = function(top)
 	local list = ns:SortedMembers(raceSort)
 	local byGear, bestGear = raceSort == "ilvl", 1
 	for key, b in pairs(sortButtons) do
@@ -623,9 +654,19 @@ render["Rennen"] = function()
 			known = true
 		end
 	end
-	local y = 28
-	if known then
-		y = Head(1, 22, format("Online:  %s%d Tank|r   %s%d Heiler|r   %s%d DD|r",
+	local byWeek, bestWeek = raceSort == "week", 1
+	for _, m in ipairs(list) do
+		bestWeek = math.max(bestWeek, ns:WeekScore(m))
+	end
+
+	local y = top + 28
+	if byWeek then
+		local first = list[1]
+		local leader = (first and ns:WeekScore(first) > 0)
+			and format("%s (%d Punkte)", first.name, ns:WeekScore(first)) or "noch offen"
+		y = Head(1, top + 22, "Crittler der Woche: |cffffffff" .. leader .. "|r")
+	elseif known then
+		y = Head(1, top + 22, format("Online:  %s%d Tank|r   %s%d Heiler|r   %s%d DD|r",
 			ROLE.TANK.hex, count.TANK, ROLE.HEALER.hex, count.HEALER, ROLE.DAMAGER.hex, count.DAMAGER))
 	end
 
@@ -669,19 +710,31 @@ render["Rennen"] = function()
 			r.bar:SetStatusBarColor(0.9, 0.6, 0.2)
 			r.bar:SetValue((m.ilvl or 0) / bestGear * 100)
 			r.bar.text:SetText("Lvl " .. (m.level or 0))
+		elseif byWeek then
+			local score = ns:WeekScore(m)
+			r.level:SetText(score)
+			r.bar:SetStatusBarColor(0.25, 0.7, 0.75)
+			r.bar:SetValue(math.max(0, score) / bestWeek * 100)
+			r.bar.text:SetText("")
 		else
 			r.level:SetText(m.level or 0)
 			r.bar:SetStatusBarColor(0.55, 0.3, 0.9)
 			r.bar:SetValue(m.xp or 0)
 			r.bar.text:SetText((m.xp or 0) .. "%")
 		end
-		r.zone:SetText(m.zone or "?")
+		if byWeek then
+			local w = ns:WeekOf(m)
+			r.zone:SetText(format("+%d Lvl  %d Quests  %d Beute  %d %s",
+				w.l or 0, w.q or 0, w.o or 0, w.d or 0, (w.d or 0) == 1 and "Tod" or "Tode"))
+		else
+			r.zone:SetText(m.zone or "?")
+		end
 		if not online then r:SetAlpha(0.5) end
 	end
 	return y
 end
 
-render["Tode"] = function()
+render["Tode"] = function(top)
 	local list = ns:SortedMembers()
 	table.sort(list, function(a, b)
 		if (a.deaths or 0) ~= (b.deaths or 0) then return (a.deaths or 0) > (b.deaths or 0) end
@@ -689,7 +742,7 @@ render["Tode"] = function()
 	end)
 	local most = math.max(1, list[1] and list[1].deaths or 0)
 
-	local y = Head(1, 0, "Wall of Shame")
+	local y = Head(1, top, "Wall of Shame")
 	for i, m in ipairs(list) do
 		local r
 		r, y = Acquire("bar", i, BarRow, y, 27)
@@ -714,8 +767,8 @@ render["Tode"] = function()
 	return y
 end
 
-render["Quests"] = function()
-	local y = Head(1, 0, "Diese Quests habt ihr gemeinsam")
+render["Quests"] = function(top)
+	local y = Head(1, top, "Diese Quests habt ihr gemeinsam")
 	local shared = ns:SharedQuests()
 	if #shared == 0 then
 		return Line(1, y, "|cff888888Gerade teilt niemand online eine Quest mit dir.|r")
@@ -726,13 +779,13 @@ render["Quests"] = function()
 	return y
 end
 
-render["Berufe"] = function()
+render["Berufe"] = function(top)
 	local groups = ns:ProfessionGroups(profFilter)
 	if #groups == 0 then
-		local y = Head(1, 28, "Berufe der Crittler")
+		local y = Head(1, top + 28, "Berufe der Crittler")
 		return Line(1, y, profFilter ~= "" and "|cff888888Niemand gefunden.|r" or "|cff888888Noch keine Berufe bekannt.|r")
 	end
-	local y, n = 28, 0
+	local y, n = top + 28, 0
 	for gi, g in ipairs(groups) do
 		local icon = g.icon and ("|T" .. g.icon .. ":16:16:0:0:64:64:5:59:5:59|t ") or ""
 		y = Head(gi, y + (gi > 1 and 8 or 0), icon .. g.name)
@@ -753,10 +806,10 @@ render["Berufe"] = function()
 	return y
 end
 
-render["Wünsche"] = function()
+render["Wünsche"] = function(top)
 	local mine = ns.cdb.wishes
 	local lines = 0
-	local y = Head(1, 28, format("Deine Wunschliste (%d/%d)", #mine, ns.MAX_WISHES))
+	local y = Head(1, top + 28, format("Deine Wunschliste (%d/%d)", #mine, ns.MAX_WISHES))
 	if #mine == 0 then
 		lines = lines + 1
 		y = Line(lines, y, "|cff888888Noch nichts eingetragen.|r")
@@ -783,9 +836,9 @@ render["Wünsche"] = function()
 	return y
 end
 
-render["Termine"] = function()
+render["Termine"] = function(top)
 	local list = ns:SortedEvents()
-	local y = 60
+	local y = top + 60
 	if #list == 0 then
 		y = Head(1, y, "Gruppensuche und Termine")
 		return Line(1, y, "|cff888888Nichts geplant. Oben eintragen und loslegen.|r")
@@ -834,11 +887,12 @@ local CHECK_OPTIONS = {
 	{ label = "Freunde auf der Weltkarte anzeigen", key = "pins" },
 	{ label = "Eigene Position mit der Gilde teilen", key = "sharePos" },
 	{ label = "Erinnerungen an Termine", key = "reminders" },
+	{ label = "Erklärungen oben in jedem Reiter anzeigen", key = "showInfo" },
 }
 
-render["Optionen"] = function()
+render["Optionen"] = function(top)
 	local s = ns.db.settings
-	local y = Head(1, 0, "Anzeige und Ton")
+	local y = Head(1, top, "Anzeige und Ton")
 	local n = 0
 	for _, o in ipairs(CHECK_OPTIONS) do
 		n = n + 1
@@ -884,12 +938,12 @@ render["Optionen"] = function()
 	return y
 end
 
-render["Erfolge"] = function()
+render["Erfolge"] = function(top)
 	local total, mine = #ns.achievements, 0
 	for _, a in ipairs(ns.achievements) do
 		if ns.cdb.ach[a.key] then mine = mine + 1 end
 	end
-	local r, y = Acquire("bar", 1, BarRow, 0, 34)
+	local r, y = Acquire("bar", 1, BarRow, top, 34)
 	r.member = nil
 	r.bg:SetShown(true)
 	r.name:SetText("Dein Fortschritt")
@@ -924,8 +978,8 @@ render["Erfolge"] = function()
 	return y
 end
 
-render["Sounds"] = function()
-	local y = Head(1, 0, "Ein Klick spielt den Sound bei allen Crittlern ab")
+render["Sounds"] = function(top)
+	local y = Head(1, top, "Soundboard")
 	local top, bw = y, (W - 16) / 3
 	for i, s in ipairs(ns.sounds) do
 		local col = (i - 1) % 3
@@ -941,6 +995,100 @@ render["Sounds"] = function()
 end
 
 ---------------------------------------------------------------------------
+-- Erklärung oben in jedem Reiter
+---------------------------------------------------------------------------
+local INFO = {
+	["Statistiken"] = { "Wer liegt vorn?",
+		"Die Rangliste aller Crittler. Mit den Knöpfen wechselst du die Ansicht: Level (Balken = Fortschritt zum nächsten Level), "
+		.. "Ausrüstung (durchschnittliche Gegenstandsstufe) oder Diese Woche (Punkte seit Montag: 10 pro Level, 1 pro Quest, "
+		.. "3 pro seltener Beute, minus 2 pro Tod).\n"
+		.. "Grüner Punkt am Klassen-Icon heißt online, grauer offline. Der goldene Strich links markiert dich. "
+		.. "Tank, Heiler oder DD kommt aus der Spezialisierung oder aus deinen Optionen. Mit der Maus über einer Zeile siehst du alle Details." },
+	["Termine"] = { "Verabreden und Gruppe finden",
+		"„Jetzt Gruppe suchen“ ruft sofort alle zusammen und läuft nach 45 Minuten ab. „Termin anlegen“ plant etwas für später: "
+		.. "den Tag mit dem Knopf wählen (Linksklick vor, Rechtsklick zurück) und die Uhrzeit eintragen.\n"
+		.. "Mit „Dabei“ oder „Nein“ sagst du zu oder ab. Die farbigen Zahlen zeigen, wie viele Tanks, Heiler und DDs zugesagt haben. "
+		.. "Das „x“ sagt einen eigenen Eintrag wieder ab. An Termine wirst du 15 Minuten vorher und zum Start erinnert." },
+	["Quests"] = { "Gemeinsame Quests",
+		"Quests aus deinem Questlog, die gerade auch ein anderer Crittler hat. Rechts steht, wer das ist. "
+		.. "Angezeigt werden nur Leute, die online sind. Beim Annehmen einer Quest bekommst du außerdem einen Hinweis im Chat." },
+	["Berufe"] = { "Wer kann was?",
+		"Alle Berufe der Gilde, pro Beruf sortiert nach Stufe. Die Zahl rechts bedeutet: aktuelle Stufe / höchste Stufe, "
+		.. "die derzeit erreichbar ist. Im Suchfeld filterst du nach einem Beruf oder einem Namen." },
+	["Wünsche"] = { "Was suchst du?",
+		"Feld anklicken, dann einen Gegenstand mit Shift-Klick einfügen oder den Namen tippen und Enter drücken. "
+		.. "Findet ein anderer Crittler so einen Gegenstand, bekommt ihr beide ein Banner.\n"
+		.. "„hast du“ bedeutet: Der Gegenstand liegt schon in deiner Tasche. Das „x“ entfernt einen Wunsch wieder." },
+	["Tode"] = { "Wall of Shame",
+		"Gezählt wird jeder Tod pro Charakter. Der rote Balken vergleicht mit dem Spitzenreiter. "
+		.. "Darunter stehen die letzten 50 Tode der Gilde mit Ort und Uhrzeit." },
+	["Erfolge"] = { "Eigene Erfolge der Gilde",
+		"Farbige Icons hast du geschafft, graue fehlen dir noch. Rechts steht das Datum, an dem du den Erfolg bekommen hast, "
+		.. "darunter, welche Crittler ihn auch schon haben." },
+	["Sounds"] = { "Krach für alle",
+		"Ein Klick spielt den Sound bei dir und bei allen Crittlern ab, die online sind. Zwischen zwei Sounds liegen "
+		.. "mindestens 5 Sekunden. Wer nichts hören will, schaltet Sounds in den Optionen ab." },
+	["Optionen"] = { "Einstellungen",
+		"Alles hier gilt nur für dich. Die Häkchen schalten einzelne Funktionen ein oder aus. „Loot teilen ab“ legt fest, "
+		.. "ab welcher Qualität deine Beute als Banner an alle geht. „Meine Rolle“ überschreibt die automatisch erkannte Rolle." },
+}
+
+local info = CreateFrame("Frame", nil, child, "BackdropTemplate")
+info:SetPoint("TOPLEFT", child, "TOPLEFT", 0, 0)
+info:SetWidth(W)
+info:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+info:SetBackdropColor(1, 0.82, 0, 0.05)
+info:SetBackdropBorderColor(1, 0.82, 0, 0.2)
+info.bar = info:CreateTexture(nil, "ARTWORK")
+info.bar:SetColorTexture(1, 0.82, 0, 0.9)
+info.bar:SetPoint("TOPLEFT", info, "TOPLEFT", 1, -1)
+info.bar:SetPoint("BOTTOMLEFT", info, "BOTTOMLEFT", 1, 1)
+info.bar:SetWidth(3)
+info.title = FS(info, "GameFontNormal", W - 30)
+info.title:SetPoint("TOPLEFT", info, "TOPLEFT", 14, -9)
+info.text = info:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+info.text:SetPoint("TOPLEFT", info.title, "BOTTOMLEFT", 0, -5)
+info.text:SetWidth(W - 30)
+info.text:SetJustifyH("LEFT")
+info.text:SetJustifyV("TOP")
+info.text:SetWordWrap(true)
+info.text:SetSpacing(3)
+info.text:SetTextColor(0.85, 0.85, 0.85)
+info:Hide()
+
+-- Zeigt die Erklärung (falls eingeschaltet), rückt die Eingabefelder darunter
+-- und liefert die Höhe, ab der der eigentliche Inhalt beginnt.
+local function PlaceTop()
+	local top = 0
+	local entry = INFO[current]
+	if entry and ns.db.settings.showInfo then
+		info.title:SetText(entry[1])
+		info.text:SetText(entry[2])
+		info:SetHeight(9 + (info.title:GetStringHeight() or 12) + 5 + (info.text:GetStringHeight() or 40) + 11)
+		info:Show()
+		top = info:GetHeight() + 10
+	else
+		info:Hide()
+	end
+	help.text:SetTextColor(ns.db.settings.showInfo and 1 or 0.6, ns.db.settings.showInfo and 0.82 or 0.6, ns.db.settings.showInfo and 0 or 0.6)
+
+	for _, box in ipairs({ searchBox, wishBox, evTitle }) do
+		box:ClearAllPoints()
+		box:SetPoint("TOPLEFT", child, "TOPLEFT", 0, -top)
+	end
+	evCall:ClearAllPoints()
+	evCall:SetPoint("TOPLEFT", child, "TOPLEFT", 0, -(top + 30))
+	evCreate:ClearAllPoints()
+	evCreate:SetPoint("TOPRIGHT", child, "TOPRIGHT", 0, -(top + 30))
+	for i, o in ipairs(SORTS) do
+		local b = sortButtons[o.key]
+		b:ClearAllPoints()
+		b:SetPoint("TOPLEFT", child, "TOPLEFT", (i - 1) * 116, -top)
+	end
+	return top
+end
+
+---------------------------------------------------------------------------
 -- Reiter
 ---------------------------------------------------------------------------
 local tabButtons = {}
@@ -951,7 +1099,7 @@ Render = function()
 	searchBox:SetShown(current == "Berufe")
 	wishBox:SetShown(current == "Wünsche")
 	for _, b in pairs(sortButtons) do
-		b:SetShown(current == "Rennen")
+		b:SetShown(current == "Statistiken")
 	end
 	local onEvents = current == "Termine"
 	evTitle:SetShown(onEvents)
@@ -959,7 +1107,7 @@ Render = function()
 	evCall:SetShown(onEvents)
 	evCreate:SetShown(onEvents)
 	evDayBtn:SetShown(onEvents)
-	contentH = math.max(render[current]() or 1, 1)
+	contentH = math.max(render[current](PlaceTop()) or 1, 1)
 	child:SetHeight(contentH)
 	UpdateScroll()
 
@@ -967,9 +1115,11 @@ Render = function()
 		if name == current then
 			b.text:SetTextColor(1, 0.82, 0)
 			b.line:Show()
+			b.active:Show()
 		else
 			b.text:SetTextColor(0.6, 0.6, 0.6)
 			b.line:Hide()
+			b.active:Hide()
 		end
 	end
 
@@ -986,14 +1136,18 @@ for i, name in ipairs(TABS) do
 	local b = CreateFrame("Button", nil, f)
 	b:SetSize(tabW, TABS_H)
 	b:SetPoint("TOPLEFT", f, "TOPLEFT", 1 + (i - 1) * tabW, -HEADER_H)
-	b.text = FS(b, "GameFontNormal", nil, "CENTER")
+	b.text = FS(b, "GameFontNormalSmall", nil, "CENTER")
 	b.text:SetPoint("CENTER", b, "CENTER", 0, 1)
 	b.text:SetText(name)
 	b.line = b:CreateTexture(nil, "ARTWORK")
 	b.line:SetColorTexture(1, 0.82, 0, 1)
-	b.line:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 10, 0)
-	b.line:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -10, 0)
+	b.line:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 4, 0)
+	b.line:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -4, 0)
 	b.line:SetHeight(2)
+	b.active = b:CreateTexture(nil, "BACKGROUND")
+	b.active:SetAllPoints()
+	b.active:SetColorTexture(1, 0.82, 0, 0.08)
+	b.active:Hide()
 	b.hover = b:CreateTexture(nil, "BACKGROUND")
 	b.hover:SetAllPoints()
 	b.hover:SetColorTexture(1, 1, 1, 0.05)
@@ -1024,7 +1178,7 @@ function ns:ToggleUI()
 end
 
 function ns:PrintRanking()
-	ns:Print("Level-Rennen:")
+	ns:Print("Rangliste:")
 	for i, m in ipairs(ns:SortedMembers()) do
 		print(format("  %d. %s – Level %d (%d%%), %s", i, m.name, m.level or 0, m.xp or 0, m.zone or "?"))
 	end

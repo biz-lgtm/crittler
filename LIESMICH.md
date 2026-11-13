@@ -13,16 +13,19 @@ Falls das Addon als „veraltet“ markiert ist: in `Crittler.toc` die Zahl hint
 
 ## Funktionen
 - **Level-Up-Feier** – Banner und Fanfare bei allen, wenn jemand aufsteigt.
-- **Level-Rennen** – Rangliste mit Level, XP-Balken und Zone (Reiter „Rennen“).
+- **Statistiken** – Rangliste mit Level, XP-Balken und Zone (Reiter „Statistiken“).
 - **Todeszähler** – Wall of Shame und die letzten 50 Tode (Reiter „Tode“).
 - **Freunde auf der Karte** – gelbe Punkte auf der Weltkarte, auch ohne Gruppe. Nicht in Dungeons.
 - **Gemeinsame Quests** – Hinweis im Chat beim Annehmen, Übersicht im Reiter „Quests“.
-- **Klasse, Spezialisierung, Rolle** – im Reiter „Rennen“ mit Klassen-Icon und Tank/Heiler/DD,
+- **Klasse, Spezialisierung, Rolle** – im Reiter „Statistiken“ mit Klassen-Icon und Tank/Heiler/DD,
   oben die Übersicht, welche Rollen gerade online sind.
 - **Gruppensuche und Termine** – „Jetzt Gruppe suchen“ oder einen Termin mit Tag und Uhrzeit anlegen.
   Alle bekommen ein Banner, sagen per Klick zu oder ab, und man sieht, ob Tank, Heiler und DDs
   dabei sind. Termine erinnern 15 Minuten vorher und zum Start (Reiter „Termine“).
-- **Ausrüstungs-Rangliste** – im Reiter „Rennen“ zwischen Level und Ausrüstung (Gegenstandsstufe) umschalten.
+- **Ausrüstungs-Rangliste** – im Reiter „Statistiken“ zwischen Level und Ausrüstung (Gegenstandsstufe) umschalten.
+- **Wochenstatistik** – im Reiter „Statistiken“ unter „Diese Woche“: Level, Quests, seltene Beute und Tode
+  seit Montag, mit Punkten und dem „Crittler der Woche“.
+- **Erklärungen** – oben in jedem Reiter steht, wofür er da ist. Das „?“ oben rechts blendet sie aus.
 - **Berufe** – wer welchen Beruf auf welcher Stufe hat, nach Beruf gruppiert, mit Suchfeld (Reiter „Berufe“).
 - **Wunschliste** – bis zu 10 Gegenstände eintragen (Shift-Klick oder Name). Findet ein anderer
   Crittler so etwas oder hat es in der Tasche, bekommen beide einen Hinweis (Reiter „Wünsche“).
@@ -31,7 +34,7 @@ Falls das Addon als „veraltet“ markiert ist: in `Crittler.toc` die Zahl hint
 - **Loot-Angeber** – seltene und bessere Drops werden als Banner geteilt.
 
 ## Minimap-Button
-Linksklick öffnet das Fenster, Rechtsklick schreibt das Level-Rennen in den Chat,
+Linksklick öffnet das Fenster, Rechtsklick schreibt die Rangliste in den Chat,
 mit gedrückter Maustaste lässt er sich um die Minimap ziehen.
 
 ## Befehle
