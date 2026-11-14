@@ -8,7 +8,7 @@
 Jeder in der Gilde braucht das Addon. Daten werden nur zwischen Leuten ausgetauscht,
 die gleichzeitig online sind.
 
-Das Addon funktioniert nur für Mitglieder der Gilde „Die Crittler“. Charaktere ohne Gilde
+Das Addon funktioniert nur für Mitglieder der Gilde „Die Crittlers“. Charaktere ohne Gilde
 oder in einer anderen Gilde sehen statt der Reiter einen Hinweis, bekommen keine Banner,
 Karten-Punkte oder Chat-Hinweise und senden und empfangen nichts.
 

@@ -44,21 +44,46 @@ end
 function ns:RefreshUI() end -- wird in UI.lua überschrieben
 
 ---------------------------------------------------------------------------
--- Gilden-Sperre: alles nur für Mitglieder der Gilde "Die Crittler"
+-- Gilden-Sperre: alles nur für Mitglieder der Gilde "Die Crittlers"
 ---------------------------------------------------------------------------
-ns.GUILD = "Die Crittler"
+ns.GUILD = "Die Crittlers"
 
 -- Name der eigenen Gilde. nil = keine Gilde oder Gildendaten noch nicht geladen.
 function ns:GuildName()
-	if not IsInGuild() or not GetGuildInfo then return nil end
-	local name = GetGuildInfo("player")
-	if IsSecret(name) or type(name) ~= "string" or name == "" then return nil end
+	if not IsInGuild() then return nil end
+	local function Valid(v)
+		return not IsSecret(v) and type(v) == "string" and v ~= ""
+	end
+	local name
+	pcall(function()
+		if GetGuildInfo then name = GetGuildInfo("player") end
+		-- Ausweichweg: der Gildenname steht auch in der Gilden-Community
+		if not Valid(name) and C_Club and C_Club.GetGuildClubId and C_Club.GetClubInfo then
+			local id = C_Club.GetGuildClubId()
+			local club = id and C_Club.GetClubInfo(id)
+			name = club and club.name
+		end
+	end)
+	if not Valid(name) then return nil end
 	return name
 end
 
+-- Groß-/Kleinschreibung und Leerzeichen am Rand sind egal
 function ns:InGuild()
 	local name = ns:GuildName()
 	return name ~= nil and strlower(strtrim(name)) == strlower(ns.GUILD)
+end
+
+-- Gildendaten beim Server anfordern, falls der Name nach dem Login noch fehlt
+function ns:RequestGuild()
+	if not IsInGuild() or ns:GuildName() then return end
+	pcall(function()
+		if C_GuildInfo and C_GuildInfo.GuildRoster then
+			C_GuildInfo.GuildRoster()
+		elseif GuildRoster then
+			GuildRoster()
+		end
+	end)
 end
 
 -- Hinweistext für alle, die nicht in der Gilde sind
@@ -463,6 +488,7 @@ end)
 local function Hello()
 	GuildChanged()
 	if not ns:CanSend() then
+		ns:RequestGuild()
 		C_Timer.After(10, Hello)
 		return
 	end
