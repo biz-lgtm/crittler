@@ -81,7 +81,7 @@ local function UpdatePins()
 	for _, pin in pairs(pins) do
 		pin:Hide()
 	end
-	if not ns.db.settings.pins then return end
+	if not ns.db.settings.pins or not ns:InGuild() then return end
 
 	local viewed = WorldMapFrame:GetMapID()
 	local canvas = WorldMapFrame:GetCanvas()

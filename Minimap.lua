@@ -60,7 +60,11 @@ b:SetScript("OnEnter", function(self)
 	end
 	GameTooltip:SetOwner(self, "ANCHOR_LEFT")
 	GameTooltip:AddLine("Die Crittler", 1, 0.82, 0)
-	GameTooltip:AddLine(format("%d Crittler, %d online", total, online), 1, 1, 1)
+	if ns:InGuild() then
+		GameTooltip:AddLine(format("%d Crittler, %d online", total, online), 1, 1, 1)
+	else
+		GameTooltip:AddLine(format("Nur für Mitglieder der Gilde „%s“", ns.GUILD), 1, 0.4, 0.4)
+	end
 	GameTooltip:AddLine(" ")
 	GameTooltip:AddLine("Linksklick: Fenster öffnen", 0.7, 0.7, 0.7)
 	GameTooltip:AddLine("Rechtsklick: Rangliste im Chat", 0.7, 0.7, 0.7)

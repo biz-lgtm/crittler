@@ -162,6 +162,27 @@ help:HookScript("OnEnter", function(self)
 end)
 help:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
+-- Hinweis für alle, die nicht in der Gilde sind (ersetzt den gesamten Inhalt)
+local lock = CreateFrame("Frame", nil, f)
+lock:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, -(HEADER_H + 10))
+lock:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -PAD, PAD)
+lock.icon = lock:CreateTexture(nil, "ARTWORK")
+lock.icon:SetSize(48, 48)
+lock.icon:SetPoint("TOP", lock, "TOP", 0, -110)
+lock.icon:SetTexture("Interface\\Icons\\INV_Misc_Key_03")
+lock.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+lock.icon:SetDesaturated(true)
+lock.title = FS(lock, "GameFontNormalLarge", nil, "CENTER")
+lock.title:SetPoint("TOP", lock.icon, "BOTTOM", 0, -16)
+lock.text = lock:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+lock.text:SetPoint("TOP", lock.title, "BOTTOM", 0, -12)
+lock.text:SetWidth(420)
+lock.text:SetJustifyH("CENTER")
+lock.text:SetWordWrap(true)
+lock.text:SetSpacing(4)
+lock.text:SetTextColor(0.85, 0.85, 0.85)
+lock:Hide()
+
 -- Scrollbereich (Mausrad) mit schmalem Balken
 local scroll = CreateFrame("ScrollFrame", nil, f)
 scroll:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, -(HEADER_H + TABS_H + 10))
@@ -887,6 +908,7 @@ local CHECK_OPTIONS = {
 	{ label = "Freunde auf der Weltkarte anzeigen", key = "pins" },
 	{ label = "Eigene Position mit der Gilde teilen", key = "sharePos" },
 	{ label = "Erinnerungen an Termine", key = "reminders" },
+	{ label = "Rückblick beim Einloggen (was ist seit dem letzten Besuch passiert)", key = "recap" },
 	{ label = "Erklärungen oben in jedem Reiter anzeigen", key = "showInfo" },
 }
 
@@ -1096,17 +1118,36 @@ local tabButtons = {}
 Render = function()
 	if not ns.db then return end
 	HideAll()
-	searchBox:SetShown(current == "Berufe")
-	wishBox:SetShown(current == "Wünsche")
+	local open = ns:InGuild()
+	searchBox:SetShown(open and current == "Berufe")
+	wishBox:SetShown(open and current == "Wünsche")
 	for _, b in pairs(sortButtons) do
-		b:SetShown(current == "Statistiken")
+		b:SetShown(open and current == "Statistiken")
 	end
-	local onEvents = current == "Termine"
+	local onEvents = open and current == "Termine"
 	evTitle:SetShown(onEvents)
 	evTime:SetShown(onEvents)
 	evCall:SetShown(onEvents)
 	evCreate:SetShown(onEvents)
 	evDayBtn:SetShown(onEvents)
+	help:SetShown(open)
+	lock:SetShown(not open)
+	for _, b in pairs(tabButtons) do
+		b:SetShown(open)
+	end
+
+	-- Nicht in der Gilde: nur der Hinweis, keine Mitglieder, keine Reiter
+	if not open then
+		info:Hide()
+		summary:SetText("")
+		lock.title:SetText(format("Nur für Mitglieder von „%s“", ns.GUILD))
+		lock.text:SetText(ns:LockText() .. "\n\nSolange du nicht in der Gilde bist, sendet und empfängt das Addon nichts.")
+		contentH, scrollPos = 1, 0
+		child:SetHeight(1)
+		UpdateScroll()
+		return
+	end
+
 	contentH = math.max(render[current](PlaceTop()) or 1, 1)
 	child:SetHeight(contentH)
 	UpdateScroll()
@@ -1178,6 +1219,10 @@ function ns:ToggleUI()
 end
 
 function ns:PrintRanking()
+	if not ns:InGuild() then
+		ns:Print(ns:LockText())
+		return
+	end
 	ns:Print("Rangliste:")
 	for i, m in ipairs(ns:SortedMembers()) do
 		print(format("  %d. %s – Level %d (%d%%), %s", i, m.name, m.level or 0, m.xp or 0, m.zone or "?"))
@@ -1196,6 +1241,10 @@ SLASH_CRITTLER2 = "/crittler"
 SlashCmdList["CRITTLER"] = function(input)
 	local cmd, arg = strsplit(" ", strtrim(input or ""), 2)
 	cmd = strlower(cmd or "")
+	if cmd ~= "" and cmd ~= "minimap" and not ns:InGuild() then
+		ns:Print(ns:LockText())
+		return
+	end
 	if cmd == "" then
 		ns:ToggleUI()
 	elseif cmd == "test" then

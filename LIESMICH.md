@@ -8,6 +8,10 @@
 Jeder in der Gilde braucht das Addon. Daten werden nur zwischen Leuten ausgetauscht,
 die gleichzeitig online sind.
 
+Das Addon funktioniert nur für Mitglieder der Gilde „Die Crittler“. Charaktere ohne Gilde
+oder in einer anderen Gilde sehen statt der Reiter einen Hinweis, bekommen keine Banner,
+Karten-Punkte oder Chat-Hinweise und senden und empfangen nichts.
+
 Falls das Addon als „veraltet“ markiert ist: in `Crittler.toc` die Zahl hinter
 `## Interface:` auf die aktuelle Client-Version setzen (`/dump (select(4, GetBuildInfo()))`).
 
@@ -25,6 +29,9 @@ Falls das Addon als „veraltet“ markiert ist: in `Crittler.toc` die Zahl hint
 - **Ausrüstungs-Rangliste** – im Reiter „Statistiken“ zwischen Level und Ausrüstung (Gegenstandsstufe) umschalten.
 - **Wochenstatistik** – im Reiter „Statistiken“ unter „Diese Woche“: Level, Quests, seltene Beute und Tode
   seit Montag, mit Punkten und dem „Crittler der Woche“.
+- **Rückblick beim Einloggen** – kurz nach dem Login steht im Chat, was sich seit dem letzten Besuch
+  getan hat: neue Level, Tode, Erfolge und neue Mitglieder. Erfasst werden alle, die gerade online sind.
+  Abschaltbar in den Optionen.
 - **Erklärungen** – oben in jedem Reiter steht, wofür er da ist. Das „?“ oben rechts blendet sie aus.
 - **Berufe** – wer welchen Beruf auf welcher Stufe hat, nach Beruf gruppiert, mit Suchfeld (Reiter „Berufe“).
 - **Wunschliste** – bis zu 10 Gegenstände eintragen (Shift-Klick oder Name). Findet ein anderer

@@ -15,6 +15,7 @@ ns.sounds = {
 	{ key = "warnung", label = "Raidwarnung", id = 8959 },
 	{ key = "check", label = "Bereit?", id = 8960 },
 	{ key = "horn", label = "Kriegshorn", id = 8459 },
+	{ key = "sicko", label = "Sicko Mode", file = "sicko-mode.mp3" },
 	-- { key = "airhorn", label = "Airhorn", file = "airhorn.ogg" },
 }
 
@@ -30,6 +31,10 @@ local function Play(s)
 end
 
 function ns:PlayBoard(key)
+	if not ns:InGuild() then
+		ns:Print(ns:LockText())
+		return
+	end
 	local s = byKey[key]
 	if not s then
 		ns:Print("Unbekannter Sound: " .. tostring(key))

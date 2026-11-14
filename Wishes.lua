@@ -141,6 +141,7 @@ end)
 
 -- Wird von Loot.lua bei jedem eigenen Fund aufgerufen
 function ns:CheckWishLoot(id, itemName)
+	if not ns:InGuild() then return end
 	local now = GetTime()
 	if lootNotified[id] and now - lootNotified[id] < 60 then return end
 	local names = {}

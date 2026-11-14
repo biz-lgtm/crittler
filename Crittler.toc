@@ -19,6 +19,7 @@ Professions.lua
 Wishes.lua
 Events.lua
 Week.lua
+Recap.lua
 Map.lua
 Soundboard.lua
 Minimap.lua

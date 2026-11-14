@@ -231,7 +231,7 @@ end)
 local function Tick()
 	if not ns.db then return end
 	local changed = Prune()
-	if ns.db.settings.reminders then
+	if ns.db.settings.reminders and ns:InGuild() then
 		local now = time()
 		for _, ev in pairs(ns.db.events) do
 			if ev.kind == "date" and ev.r[ns.me] ~= "n" then
@@ -250,7 +250,7 @@ local function Tick()
 end
 
 local function LoginSummary()
-	if not ns.db or not ns.db.settings.reminders then return end
+	if not ns.db or not ns.db.settings.reminders or not ns:InGuild() then return end
 	local list = ns:SortedEvents()
 	if #list == 0 then return end
 	ns:Print("Offene Termine:")

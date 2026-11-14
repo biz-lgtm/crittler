@@ -96,7 +96,7 @@ end
 ns:On("QUEST_ACCEPTED", function(a, b)
 	if not ns.db then return end
 	local questID = b or a -- je nach Client (Index, ID) oder nur (ID)
-	if type(questID) == "number" then
+	if type(questID) == "number" and ns:InGuild() then
 		local names = ns:WhoHasQuest(questID)
 		if #names > 0 then
 			local title = C_QuestLog and C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questID)

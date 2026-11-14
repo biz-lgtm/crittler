@@ -43,6 +43,45 @@ end
 
 function ns:RefreshUI() end -- wird in UI.lua überschrieben
 
+---------------------------------------------------------------------------
+-- Gilden-Sperre: alles nur für Mitglieder der Gilde "Die Crittler"
+---------------------------------------------------------------------------
+ns.GUILD = "Die Crittler"
+
+-- Name der eigenen Gilde. nil = keine Gilde oder Gildendaten noch nicht geladen.
+function ns:GuildName()
+	if not IsInGuild() or not GetGuildInfo then return nil end
+	local name = GetGuildInfo("player")
+	if IsSecret(name) or type(name) ~= "string" or name == "" then return nil end
+	return name
+end
+
+function ns:InGuild()
+	local name = ns:GuildName()
+	return name ~= nil and strlower(strtrim(name)) == strlower(ns.GUILD)
+end
+
+-- Hinweistext für alle, die nicht in der Gilde sind
+function ns:LockText()
+	local name = ns:GuildName()
+	if name then
+		return format("Dieser Charakter ist in der Gilde „%s“. Das Addon zeigt nur Mitgliedern der Gilde „%s“ etwas an.", name, ns.GUILD)
+	elseif IsInGuild() then
+		return "Deine Gildendaten werden noch geladen. Einen Moment bitte …"
+	end
+	return format("Dieser Charakter ist in keiner Gilde. Das Addon zeigt nur Mitgliedern der Gilde „%s“ etwas an.", ns.GUILD)
+end
+
+-- Gilde betreten, verlassen oder Gildendaten nachgeladen: Fenster und Karte anpassen
+local lastGuild
+local function GuildChanged()
+	local now = ns:InGuild()
+	if now == lastGuild then return end
+	lastGuild = now
+	if ns.UpdatePins then ns.UpdatePins() end
+	ns:RefreshUI()
+end
+
 frame:SetScript("OnEvent", function(_, event, ...)
 	local list = events[event]
 	if not list then return end
@@ -59,7 +98,7 @@ local DB_DEFAULTS = {
 	deathLog = {},
 	events = {}, eventsGone = {},
 	settings = { sound = true, toasts = true, pins = true, sharePos = true, lootQuality = 3,
-		soundChannel = "Master", reminders = true, showInfo = true,
+		soundChannel = "Master", reminders = true, showInfo = true, recap = true,
 		minimap = { hide = false, angle = 215 } },
 }
 local CHAR_DEFAULTS = {
@@ -203,7 +242,7 @@ end
 local queue, lastSend = {}, 0
 
 function ns:CanSend()
-	if not IsInGuild() then return false end
+	if not ns:InGuild() then return false end
 	if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return false end
 	return true
 end
@@ -242,6 +281,7 @@ end
 ns:On("CHAT_MSG_ADDON", function(prefix, msg, channel, sender)
 	if IsSecret(prefix) or IsSecret(msg) or IsSecret(channel) or IsSecret(sender) then return end
 	if prefix ~= ns.PREFIX or channel ~= "GUILD" or not ns.db then return end
+	if not ns:InGuild() then return end -- fremde Gilde: nichts annehmen
 	local name = ns:Canon(Ambiguate(sender, "guild"))
 	msg = msg:gsub("|", "||") -- keine fremden Farb-/Textur-Codes in Bannern und Tooltips
 	local msgType, rest = strsplit("^", msg, 2)
@@ -421,6 +461,7 @@ end)
 -- Begrüßung: eigenen Namen lernen und den Stand von allen anfordern.
 -- Direkt nach dem Login sind die Gildendaten manchmal noch nicht da, deshalb mit Wiederholung.
 local function Hello()
+	GuildChanged()
 	if not ns:CanSend() then
 		C_Timer.After(10, Hello)
 		return
@@ -435,12 +476,15 @@ local function Hello()
 	if ns.SendWishes then ns:SendWishes() end
 	if ns.SendEvents then ns:SendEvents() end
 	if ns.SendWeek then ns:SendWeek() end
+	if ns.QueueRecap then ns:QueueRecap() end
 end
 
 ns:On("PLAYER_XP_UPDATE", function() ns:QueueStatus(5) end)
 ns:On("ZONE_CHANGED_NEW_AREA", function() ns:QueueStatus(2) end)
 ns:On("PLAYER_SPECIALIZATION_CHANGED", function() ns:QueueStatus(2) end)
 ns:On("PLAYER_EQUIPMENT_CHANGED", function() ns:QueueStatus(5) end)
+ns:On("PLAYER_GUILD_UPDATE", GuildChanged)
+ns:On("GUILD_ROSTER_UPDATE", GuildChanged)
 
 ---------------------------------------------------------------------------
 -- Start
